@@ -1,0 +1,54 @@
+name: Release
+
+on:
+    push:
+        branches:
+            - release
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+
+            - name: Automate Version Bump
+              id: bump_version
+              run: |
+                  # Read current version
+                  current_version=$(cat VERSION)
+                  IFS='.' read -r -a parts <<< "$current_version"
+
+                  # Default: Increment Patch (Index 2)
+                  # Format: Major.Minor.Patch.Hotfix
+                  # To change this behavior, you can add logic to check commit messages
+
+                  new_patch=$((parts[2] + 1))
+                  new_version="${parts[0]}.${parts[1]}.$new_patch.0"
+
+                  echo "Bumping from $current_version to $new_version"
+                  echo "$new_version" > VERSION
+
+                  # Configure git
+                  git config --global user.name 'github-actions[bot]'
+                  git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+                  # Commit and Push
+                  git add VERSION
+                  git commit -m "chore: bump version to $new_version [skip ci]"
+                  git push origin release
+
+                  echo "VERSION=$new_version" >> $GITHUB_OUTPUT
+
+            - name: Create Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: v${{ steps.bump_version.outputs.VERSION }}
+                  name: Release v${{ steps.bump_version.outputs.VERSION }}
+                  generate_release_notes: true
+                  draft: false
+                  prerelease: false
