@@ -28,22 +28,36 @@ echo "node_modules/\n.cache/\nresult/" > .gitignore
 
 B. Installing AGS (Dependencies)
 
-AGS (Aylur's GTK Shell) requires GJS and GTK3.
+AGS (Aylur's GTK Shell) is the runtime. This project also uses `gnim` (for JSX widgets) and `astal` libraries.
 
-Arch Linux:
+**Arch Linux:**
 
-yay -S ags-hyprland-git # or just 'ags' if not using Hyprland specific features
-npm install # installs types for development
+```bash
+yay -S aylurs-gtk-shell-git # Installs AGS and Astal dependencies
+npm install # Installs gnim and other project dependencies
+```
 
-Ubuntu/Debian:
-You will need to install gjs, gtk3, gtk-layer-shell, and then build AGS from source or use a pre-compiled binary. It is highly recommended to have npm installed for managing type definitions.
+**Nix:**
+
+```bash
+nix shell github:aylur/ags
+npm install
+```
+
+**From Source:**
+
+1.  Install **Astal** libraries (`astal-io`, `astal3`, `astal4`).
+2.  Install **AGS** CLI from source (requires `meson`, `ninja`, `gtk4`, etc.).
+3.  Run `npm install` in this project to install **Gnim** and TypeScript definitions.
+
+See the [official installation guide](https://aylur.github.io/ags/guide/install.html) for detailed steps.
 
 C. TypeScript Definitions
 
 Initialize a package.json to get IntelliSense in your editor.
 
 npm init -y
-npm install -D ags-types
+npm install # Installs dependencies listed in package.json
 
 Create a tsconfig.json (optional but recommended for VSCode):
 
@@ -96,47 +110,47 @@ export const SLANT = 20; // Horizontal space for the angle
 
 /\*\*
 
--   Draws a shape composed of N interlocking tiles.
--   @param {Cairo.Context} cr - The drawing context
--   @param {number} width - Total widget width
--   @param {number} height - Total widget height
--   @param {number} units - How many tiles this shape consumes
--   @param {boolean} startUpright - True if the first tile is Upright ( / \ ), False if Inverted ( \ / )
-    \*/
-    export function drawPolyTile(cr, width, height, units, startUpright) {
-    const totalWidth = width;
+- Draws a shape composed of N interlocking tiles.
+- @param {Cairo.Context} cr - The drawing context
+- @param {number} width - Total widget width
+- @param {number} height - Total widget height
+- @param {number} units - How many tiles this shape consumes
+- @param {boolean} startUpright - True if the first tile is Upright ( / \ ), False if Inverted ( \ / )
+  \*/
+  export function drawPolyTile(cr, width, height, units, startUpright) {
+  const totalWidth = width;
 
-        // Starting coordinates
-        // If Upright: Top starts at SLANT, Bottom starts at 0
-        // If Inverted: Top starts at 0, Bottom starts at SLANT
+      // Starting coordinates
+      // If Upright: Top starts at SLANT, Bottom starts at 0
+      // If Inverted: Top starts at 0, Bottom starts at SLANT
 
-        let xTop = startUpright ? SLANT : 0;
-        let xBottom = startUpright ? 0 : SLANT;
+      let xTop = startUpright ? SLANT : 0;
+      let xBottom = startUpright ? 0 : SLANT;
 
-        cr.moveTo(xBottom, height); // Start bottom-left
-        cr.lineTo(xTop, 0);         // Line to top-left
+      cr.moveTo(xBottom, height); // Start bottom-left
+      cr.lineTo(xTop, 0);         // Line to top-left
 
-        // Draw Top Edge
-        // The top edge length depends on the sequence of tiles.
-        // However, for a solid block, we just need the final X coordinate.
-        // Visually, the width of N tiles is (N * TILE_WIDTH) + SLANT
-        // But simply, we just draw to the calculated width minus the final slant logic.
+      // Draw Top Edge
+      // The top edge length depends on the sequence of tiles.
+      // However, for a solid block, we just need the final X coordinate.
+      // Visually, the width of N tiles is (N * TILE_WIDTH) + SLANT
+      // But simply, we just draw to the calculated width minus the final slant logic.
 
-        const finalIsUpright = (units % 2 === 0) ? !startUpright : startUpright;
+      const finalIsUpright = (units % 2 === 0) ? !startUpright : startUpright;
 
-        // If the last tile is Upright, the top-right corner is "inwards" by SLANT relative to bottom-right
-        // If the last tile is Inverted, the top-right corner is the extreme edge.
+      // If the last tile is Upright, the top-right corner is "inwards" by SLANT relative to bottom-right
+      // If the last tile is Inverted, the top-right corner is the extreme edge.
 
-        // Actually, simpler logic:
-        // We just trace the outline.
+      // Actually, simpler logic:
+      // We just trace the outline.
 
-        cr.lineTo(width - (finalIsUpright ? SLANT : 0), 0);         // Top Right
-        cr.lineTo(width - (finalIsUpright ? 0 : SLANT), height);    // Bottom Right
-        cr.lineTo(xBottom, height);                                 // Close loop
+      cr.lineTo(width - (finalIsUpright ? SLANT : 0), 0);         // Top Right
+      cr.lineTo(width - (finalIsUpright ? 0 : SLANT), height);    // Bottom Right
+      cr.lineTo(xBottom, height);                                 // Close loop
 
-        cr.closePath();
+      cr.closePath();
 
-    }
+  }
 
 B. The Base Tile Component (lib/tile.js)
 
@@ -149,54 +163,54 @@ import { drawPolyTile, TILE_HEIGHT, TILE_WIDTH, SLANT } from './drawing.js';
 
 /\*\*
 
--   @param {Object} props
--   @param {number} props.units - Number of tiles to consume (default 1)
--   @param {number} props.index - Global index to determine parity (Upright/Inverted)
--   @param {import('types/widgets/box').default} props.child - The content to put inside
-    \*/
-    export const Tile = ({ units = 1, index = 0, child, className = '', ...props }) => {
+- @param {Object} props
+- @param {number} props.units - Number of tiles to consume (default 1)
+- @param {number} props.index - Global index to determine parity (Upright/Inverted)
+- @param {import('types/widgets/box').default} props.child - The content to put inside
+  \*/
+  export const Tile = ({ units = 1, index = 0, child, className = '', ...props }) => {
 
-        // Calculate required pixel width
-        // Formula: (Unit Width * N) + Slant
-        // Note: The visual "overlap" means we sum the core widths.
-        const calculatedWidth = (TILE_WIDTH * units) + (2 * SLANT);
-        // *Adjustment might be needed depending on precise geometry desired*
+      // Calculate required pixel width
+      // Formula: (Unit Width * N) + Slant
+      // Note: The visual "overlap" means we sum the core widths.
+      const calculatedWidth = (TILE_WIDTH * units) + (2 * SLANT);
+      // *Adjustment might be needed depending on precise geometry desired*
 
-        // Determine orientation based on global index
-        const startUpright = index % 2 === 0;
+      // Determine orientation based on global index
+      const startUpright = index % 2 === 0;
 
-        return Widget.Overlay({
-            pass_through: true,
-            overlays: [
-                Widget.DrawingArea({
-                    class_name: `geo-tile units-${units} ${className}`,
-                    widthRequest: calculatedWidth,
-                    heightRequest: TILE_HEIGHT,
-                    setup: self => self.connect('draw', (_, cr) => {
-                        const ctx = self.get_style_context();
-                        const bg = ctx.get_property('background-color', Gtk.StateFlags.NORMAL);
-                        const fg = ctx.get_property('color', Gtk.StateFlags.NORMAL);
+      return Widget.Overlay({
+          pass_through: true,
+          overlays: [
+              Widget.DrawingArea({
+                  class_name: `geo-tile units-${units} ${className}`,
+                  widthRequest: calculatedWidth,
+                  heightRequest: TILE_HEIGHT,
+                  setup: self => self.connect('draw', (_, cr) => {
+                      const ctx = self.get_style_context();
+                      const bg = ctx.get_property('background-color', Gtk.StateFlags.NORMAL);
+                      const fg = ctx.get_property('color', Gtk.StateFlags.NORMAL);
 
-                        drawPolyTile(cr, calculatedWidth, TILE_HEIGHT, units, startUpright);
+                      drawPolyTile(cr, calculatedWidth, TILE_HEIGHT, units, startUpright);
 
-                        Gdk.cairo_set_source_rgba(cr, bg);
-                        cr.fillPreserve();
+                      Gdk.cairo_set_source_rgba(cr, bg);
+                      cr.fillPreserve();
 
-                        Gdk.cairo_set_source_rgba(cr, fg);
-                        cr.setLineWidth(2);
-                        cr.stroke();
-                    })
-                })
-            ],
-            child: Widget.Box({
-                hpack: 'center',
-                vpack: 'center',
-                widthRequest: calculatedWidth, // Force box to take full width for centering
-                children: [child]
-            })
-        });
+                      Gdk.cairo_set_source_rgba(cr, fg);
+                      cr.setLineWidth(2);
+                      cr.stroke();
+                  })
+              })
+          ],
+          child: Widget.Box({
+              hpack: 'center',
+              vpack: 'center',
+              widthRequest: calculatedWidth, // Force box to take full width for centering
+              children: [child]
+          })
+      });
 
-    };
+  };
 
 C. The Status Bar (config.js)
 

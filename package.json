@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "ags": "*",
+    "gnim": "^1.9.0"
+  },
+  "scripts": {
+    "start": "ags run app.ts",
+    "type-check": "tsc --noEmit",
+    "bundle": "ags bundle app.ts dist/app.js"
+  },
+  "prettier": {
+    "semi": false,
+    "tabWidth": 2
+  },
+  "devDependencies": {
+    "@girs/gjs": "^4.0.0-beta.38",
+    "@girs/gtk-4.0": "^4.20.1-4.0.0-beta.38",
+    "esbuild": "^0.27.1",
+    "sass": "^1.95.0",
+    "typescript": "^5.9.3"
+  }
+}
