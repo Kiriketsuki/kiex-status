@@ -1,0 +1,12 @@
+name: Task
+description: Define a high-level task
+title: "[TASK]: "
+labels: ["task"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the task.
+    validations:
+      required: true

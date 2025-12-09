@@ -1,0 +1,33 @@
+name: Create Task Branch
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create_branch:
+    if: contains(github.event.issue.labels.*.name, 'task')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          # Sanitize title: remove special chars, replace spaces with dashes, lowercase
+          SAFE_TITLE=$(echo "$ISSUE_TITLE" | sed -e 's/[^a-zA-Z0-9 ]//g' | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
+          BRANCH_NAME="task/$ISSUE_NUMBER-$SAFE_TITLE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+
+          gh issue comment "$ISSUE_NUMBER" --body "Created branch \`$BRANCH_NAME\`"

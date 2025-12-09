@@ -1,0 +1,61 @@
+name: Create Feature Branch
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create_branch:
+    if: contains(github.event.issue.labels.*.name, 'feature')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Create Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY="${{ github.event.issue.body }}"
+
+          # Extract Parent Issue Number from body
+          # Looking for "### Parent Task Issue Number" followed by the number
+          PARENT_ID=$(echo "$ISSUE_BODY" | grep -A 2 "### Parent Task Issue Number" | tail -n 1 | tr -d ' \r\n')
+
+          BASE_BRANCH="main"
+
+          if [[ "$PARENT_ID" =~ ^[0-9]+$ ]]; then
+            echo "Parent Issue ID found: $PARENT_ID"
+            # Find branch starting with task/$PARENT_ID
+            # We need to fetch all branches first
+            git fetch --all
+            PARENT_BRANCH=$(git branch -r | grep "origin/task/$PARENT_ID-" | head -n 1 | sed 's/origin\///' | xargs)
+            
+            if [ -n "$PARENT_BRANCH" ]; then
+              echo "Found parent branch: $PARENT_BRANCH"
+              BASE_BRANCH="$PARENT_BRANCH"
+            else
+              echo "Parent branch not found for issue $PARENT_ID. Defaulting to main."
+            fi
+          else
+            echo "No valid parent issue ID found. Defaulting to main."
+          fi
+
+          # Sanitize title
+          SAFE_TITLE=$(echo "$ISSUE_TITLE" | sed -e 's/[^a-zA-Z0-9 ]//g' | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
+          BRANCH_NAME="feature/$ISSUE_NUMBER-$SAFE_TITLE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout "$BASE_BRANCH"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+
+          gh issue comment "$ISSUE_NUMBER" --body "Created branch \`$BRANCH_NAME\` based on \`$BASE_BRANCH\`"
