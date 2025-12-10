@@ -65,7 +65,7 @@ export function drawSubtileBoundaries(
 
   for (let i = 2; i <= numTriangles; i++) {
     // i is the index of the line segment (1-based)
-    // Line 1 is Left Edge. Line 3N is Right Edge.
+    // Line 1 is Left Edge. Line 3N + 1 is Right Edge.
     // Unit boundaries are at i = 3k + 1 (4, 7, 10...)
 
     if (i % 3 !== 1) {
