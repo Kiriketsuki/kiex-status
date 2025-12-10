@@ -1,8 +1,17 @@
 import Cairo from "cairo"
 
-export const TILE_HEIGHT = 40
-export const TILE_WIDTH = 60
-export const SLANT = 20
+export const SIDE_LENGTH = 40
+export const TILE_HEIGHT = (SIDE_LENGTH * Math.sqrt(3)) / 2
+export const SLANT = SIDE_LENGTH / 2
+export const TILE_WIDTH = SIDE_LENGTH // Flat top width of a single upright triangle? No, flat top of upright trapezoid is SIDE_LENGTH.
+
+/**
+ * Calculates the total width for a poly tile with N units.
+ * Formula: S * (1 + 3N) / 2
+ */
+export function getPolyTileWidth(units: number): number {
+  return (SIDE_LENGTH * (1 + 3 * units)) / 2
+}
 
 /**
  * Draws a shape composed of N interlocking tiles.
@@ -30,8 +39,6 @@ export function drawPolyTile(
   cr.lineTo(xTop, 0) // Line to top-left
 
   // Draw Top Edge
-  // The top edge length depends on the sequence of tiles.
-  // However, for a solid block, we just need the final X coordinate.
 
   const finalIsUpright = units % 2 === 0 ? !startUpright : startUpright
 
@@ -41,4 +48,89 @@ export function drawPolyTile(
   cr.lineTo(width - (finalIsUpright ? SLANT : 0), 0) // Top Right
   cr.lineTo(width - (finalIsUpright ? 0 : SLANT), height) // Bottom Right
   cr.lineTo(xBottom, height) // Close loop
+}
+
+/**
+ * Draws the dividing lines between subtiles (equilateral triangles) within a unit.
+ * Excludes the boundaries between units and the outer edges.
+ */
+export function drawSubtileBoundaries(
+  cr: Cairo.Context,
+  height: number,
+  units: number,
+  startUpright: boolean
+) {
+  const numTriangles = 3 * units
+  const stepX = SLANT
+
+  for (let i = 2; i < numTriangles; i++) {
+    // i is the index of the line segment (1-based)
+    // Line 1 is Left Edge. Line 3N is Right Edge.
+    // Unit boundaries are at i = 3k + 1 (4, 7, 10...)
+
+    if (i % 3 !== 1) {
+      const xStart = (i - 1) * stepX
+      const xEnd = i * stepX
+
+      // Determine Y coordinates
+      // If startUpright: Y0=H, Y1=0, Y2=H...
+      // Y_index = (index % 2 === 0) ? H : 0 (if startUpright)
+
+      const yStart = startUpright
+        ? (i - 1) % 2 === 0
+          ? height
+          : 0
+        : (i - 1) % 2 === 0
+        ? 0
+        : height
+      const yEnd = startUpright
+        ? i % 2 === 0
+          ? height
+          : 0
+        : i % 2 === 0
+        ? 0
+        : height
+
+      cr.moveTo(xStart, yStart)
+      cr.lineTo(xEnd, yEnd)
+    }
+  }
+}
+
+/**
+ * Draws the dividing lines between units (trapeziums).
+ */
+export function drawUnitBoundaries(
+  cr: Cairo.Context,
+  height: number,
+  units: number,
+  startUpright: boolean
+) {
+  const numTriangles = 3 * units
+  const stepX = SLANT
+
+  for (let i = 2; i < numTriangles; i++) {
+    if (i % 3 === 1) {
+      const xStart = (i - 1) * stepX
+      const xEnd = i * stepX
+
+      const yStart = startUpright
+        ? (i - 1) % 2 === 0
+          ? height
+          : 0
+        : (i - 1) % 2 === 0
+        ? 0
+        : height
+      const yEnd = startUpright
+        ? i % 2 === 0
+          ? height
+          : 0
+        : i % 2 === 0
+        ? 0
+        : height
+
+      cr.moveTo(xStart, yStart)
+      cr.lineTo(xEnd, yEnd)
+    }
+  }
 }

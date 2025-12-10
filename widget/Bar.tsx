@@ -2,7 +2,13 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { createPoll } from "ags/time"
-import { drawPolyTile } from "../lib/drawing"
+import {
+  drawPolyTile,
+  drawSubtileBoundaries,
+  drawUnitBoundaries,
+  getPolyTileWidth,
+  TILE_HEIGHT,
+} from "../lib/drawing"
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const time = createPoll("", 1000, "date")
@@ -29,7 +35,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         </button>
         <drawingarea
           $type="center"
-          css="min-width: 100px; min-height: 40px;"
+          css={`
+            min-width: ${getPolyTileWidth(2)}px;
+            min-height: ${TILE_HEIGHT}px;
+          `}
           onRealize={(self) => {
             self.set_draw_func(
               (_, cr, width, height) => {
@@ -40,6 +49,18 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
                 // Draw a 2-unit tile starting upright
                 drawPolyTile(cr, width, height, 2, true)
                 cr.fill()
+
+                // Draw Subtile Boundaries (Thinner, lighter)
+                cr.setSourceRGBA(0, 0, 0, 0.5)
+                cr.setLineWidth(1)
+                drawSubtileBoundaries(cr, height, 2, true)
+                cr.stroke()
+
+                // Draw Unit Boundaries (Thicker, darker)
+                cr.setSourceRGBA(0, 0, 0, 1)
+                cr.setLineWidth(2)
+                drawUnitBoundaries(cr, height, 2, true)
+                cr.stroke()
               },
               null,
               null
