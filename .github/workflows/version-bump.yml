@@ -59,6 +59,10 @@ jobs:
           if [[ "$TARGET_BRANCH" == "main" ]]; then
             if [[ "$SOURCE_BRANCH" == task/* ]]; then
               BUMP_TYPE="major"
+            elif [[ "$SOURCE_BRANCH" == feature/* ]]; then
+              BUMP_TYPE="minor"
+            elif [[ "$SOURCE_BRANCH" == bug/* ]]; then
+              BUMP_TYPE="bug"
             elif [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
               BUMP_TYPE="hotfix"
             fi
