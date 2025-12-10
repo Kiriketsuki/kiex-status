@@ -16,13 +16,62 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check for Release Commit
+        id: check_commit
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $COMMIT_MSG"
+          if [[ "$COMMIT_MSG" =~ ^chore:\ release\ v ]]; then
+            echo "IS_RELEASE_COMMIT=true" >> $GITHUB_OUTPUT
+            echo "Detected release commit. Proceeding to release."
+          else
+            echo "IS_RELEASE_COMMIT=false" >> $GITHUB_OUTPUT
+            echo "Not a release commit. Proceeding to bump version."
+          fi
+
+      - name: Bump Release Version
+        if: steps.check_commit.outputs.IS_RELEASE_COMMIT == 'false'
+        run: |
+          CURRENT_VERSION=$(cat VERSION)
+          echo "Current Version: $CURRENT_VERSION"
+
+          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-z]*)$ ]]; then
+            RELEASE="${BASH_REMATCH[1]}"
+            MAJOR="${BASH_REMATCH[2]}"
+            MINOR="${BASH_REMATCH[3]}"
+            PATCH="${BASH_REMATCH[4]}"
+            HOTFIX="${BASH_REMATCH[5]}"
+          else
+            echo "Error: Invalid version format: $CURRENT_VERSION"
+            exit 1
+          fi
+
+          # Bump RELEASE component
+          RELEASE=$((RELEASE + 1))
+
+          NEW_VERSION="$RELEASE.$MAJOR.$MINOR.$PATCH$HOTFIX"
+          echo "Bumping to: $NEW_VERSION"
+          echo "$NEW_VERSION" > VERSION
+
+          # Update package.json
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add VERSION package.json
+          git commit -m "chore: release v$NEW_VERSION"
+          git push origin release
+
       - name: Read Version
+        if: steps.check_commit.outputs.IS_RELEASE_COMMIT == 'true'
         id: get_version
         run: |
           current_version=$(cat VERSION)
           echo "VERSION=$current_version" >> $GITHUB_OUTPUT
 
       - name: Create Release
+        if: steps.check_commit.outputs.IS_RELEASE_COMMIT == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
