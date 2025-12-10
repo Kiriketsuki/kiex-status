@@ -83,6 +83,8 @@ Parity & Offset: Parity is local to the module. An `offset` parameter determines
 
 Module Size: A module (like Clock) can consume N units.
 
+Subtiling: Each unit can be further divided into smaller triangles for visual effect. See [Subtiling System](./subtiling.md) for details.
+
 Directory Structure
 
 kiex-status/
