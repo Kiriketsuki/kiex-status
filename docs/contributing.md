@@ -16,7 +16,7 @@ We follow a strict branching model to ensure stability.
 
 ## Versioning
 
-We use a 5-part versioning system: `Release.Major.Minor.Patch[Hotfix]` (e.g., `0.1.0.0` or `0.1.0.0a`).
+We use a 4-part versioning system with optional hotfix suffix: `Release.Major.Minor.Patch[Hotfix]` (e.g., `0.1.0.0` or `0.1.0.0a`).
 
 - **Release**: Defaults to 0.
 - **Major/Minor/Patch**: Standard semantic versioning numbers.

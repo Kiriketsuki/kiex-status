@@ -103,22 +103,24 @@ The bar is composed of independent modules, each drawn as a sequence of interloc
 
 ```
 kiex-status/
-├── config.js          # Entry point
+├── app.ts             # Entry point
 ├── style.scss         # Styles
 ├── lib/
-│   ├── drawing.js     # Cairo drawing logic
-│   └── tile.js        # The Base Tile component
-└── modules/
-    ├── clock.js
-    └── workspaces.js
+│   └── drawing.ts     # Cairo drawing logic
+├── widget/
+│   ├── Bar.tsx        # Main bar widget
+│   └── Tile.tsx       # Reusable Tile component
+├── modules/           # Future modules
+└── docs/
+    └── TILE_COMPONENT.md  # Tile component documentation
 ```
 
 ## Usage
 
-Run AGS pointing to this configuration directory:
+Run AGS pointing to this configuration:
 
 ```bash
-ags run app.tsx --gtk 3
+ags run app.ts
 ```
 
 Or using npm:
@@ -127,14 +129,19 @@ Or using npm:
 npm start
 ```
 
+## Documentation
+
+- **[Tile Component Documentation](docs/tile_component.md)**: Detailed API reference, usage examples, and architectural notes for the reusable Tile component.
+- **[Copilot Instructions](.github/copilot-instructions.md)**: Development guidelines and architecture overview.
+
 ## Development
 
-### Previewing Shapes
+### Working with Tiles
 
-You can generate a preview of the geometric shapes without running the full AGS shell using the included script (requires `gjs` and `cairo`):
+See [docs/tile_component.md](docs/tile_component.md) for:
 
-```bash
-gjs -m scripts/render-preview.js
-```
-
-This will generate `preview.png` in the current directory.
+- Component API reference
+- Interactive widget patterns
+- Layout limitations and workarounds
+- Subtile indexing system
+- Performance best practices
