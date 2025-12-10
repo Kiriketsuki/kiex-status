@@ -7,11 +7,13 @@ on:
       - main
       - "task/**"
       - "feature/**"
+      - "hotfix/**"
   push:
     branches:
       - main
       - "task/**"
       - "feature/**"
+      - "hotfix/**"
 
 jobs:
   bump-version:
@@ -77,32 +79,46 @@ jobs:
         if: steps.bump_type.outputs.BUMP_TYPE != 'none'
         run: |
           CURRENT_VERSION=$(cat VERSION)
-          IFS='.' read -r -a parts <<< "$CURRENT_VERSION"
-
-          MAJOR=${parts[0]}
-          MINOR=${parts[1]}
-          BUG=${parts[2]}
-          HOTFIX=${parts[3]}
+          # Regex to parse Release.Major.Minor.Patch[Hotfix]
+          # Examples: 0.1.0.0, 0.1.0.0a
+          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-z]*)$ ]]; then
+            RELEASE="${BASH_REMATCH[1]}"
+            MAJOR="${BASH_REMATCH[2]}"
+            MINOR="${BASH_REMATCH[3]}"
+            PATCH="${BASH_REMATCH[4]}"
+            HOTFIX="${BASH_REMATCH[5]}"
+          else
+            echo "Error: Invalid version format in VERSION file: $CURRENT_VERSION"
+            exit 1
+          fi
 
           TYPE="${{ steps.bump_type.outputs.BUMP_TYPE }}"
 
           if [ "$TYPE" == "major" ]; then
             MAJOR=$((MAJOR + 1))
             MINOR=0
-            BUG=0
-            HOTFIX=0
+            PATCH=0
+            HOTFIX=""
           elif [ "$TYPE" == "minor" ]; then
             MINOR=$((MINOR + 1))
-            BUG=0
-            HOTFIX=0
+            PATCH=0
+            HOTFIX=""
           elif [ "$TYPE" == "bug" ]; then
-            BUG=$((BUG + 1))
-            HOTFIX=0
+            PATCH=$((PATCH + 1))
+            HOTFIX=""
           elif [ "$TYPE" == "hotfix" ]; then
-            HOTFIX=$((HOTFIX + 1))
+            if [ -z "$HOTFIX" ]; then
+              HOTFIX="a"
+            else
+              # Increment char: a->b, b->c
+              # Convert char to ascii, add 1, convert back
+              ASCII_VAL=$(printf "%d" "'$HOTFIX")
+              NEXT_ASCII_VAL=$((ASCII_VAL + 1))
+              HOTFIX=$(printf "\\$(printf '%03o' "$NEXT_ASCII_VAL")")
+            fi
           fi
 
-          NEW_VERSION="$MAJOR.$MINOR.$BUG.$HOTFIX"
+          NEW_VERSION="$RELEASE.$MAJOR.$MINOR.$PATCH$HOTFIX"
           echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
           echo "$NEW_VERSION" > VERSION
 

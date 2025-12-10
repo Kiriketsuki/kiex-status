@@ -2,10 +2,15 @@ name: Create Task Branch
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue Number"
+        required: true
 
 jobs:
   create_branch:
-    if: contains(github.event.issue.labels.*.name, 'task')
+    if: contains(github.event.issue.labels.*.name, 'task') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -19,13 +24,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ISSUE_NUMBER="${{ github.event.issue.number }}"
-          ISSUE_TITLE="${{ github.event.issue.title }}"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ISSUE_NUMBER="${{ inputs.issue_number }}"
+          else
+            ISSUE_NUMBER="${{ github.event.issue.number }}"
+          fi
+
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "Error: Issue Number is missing."
+            exit 1
+          fi
+
+          # Fetch issue details
+          ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --json title,body)
+          ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r .title)
+          ISSUE_BODY=$(echo "$ISSUE_JSON" | jq -r .body)
+
           BASE_BRANCH="main"
 
-          # Sanitize title: remove special chars, replace spaces with dashes, lowercase
-          SAFE_TITLE=$(echo "$ISSUE_TITLE" | sed -e 's/[^a-zA-Z0-9 ]//g' | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
+          # Sanitize title: lowercase, remove "task" prefix, remove special chars, squeeze spaces, replace with dashes
+          SAFE_TITLE=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed -E 's/^\[?task\]?[-: ]+ ?//' | sed -e 's/[^a-z0-9 ]//g' | tr -s ' ' | tr ' ' '-')
           BRANCH_NAME="task/$ISSUE_NUMBER-$SAFE_TITLE"
+
+          # Check if branch exists
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME already exists. Skipping."
+            exit 0
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -35,6 +60,6 @@ jobs:
           git commit --allow-empty -m "chore: initialize branch for issue #$ISSUE_NUMBER"
           git push origin "$BRANCH_NAME"
 
-          gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "Resolve #$ISSUE_NUMBER: $ISSUE_TITLE" --body "Closes #$ISSUE_NUMBER" --draft
+          gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "Implements #$ISSUE_NUMBER: $ISSUE_TITLE" --body "$ISSUE_BODY" --label "implementation" --draft
 
           gh issue comment "$ISSUE_NUMBER" --body "Created branch \`$BRANCH_NAME\` and opened draft PR."
