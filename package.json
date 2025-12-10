@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0a",
+  "version": "0.0.1.0b",
   "dependencies": {
     "ags": "*",
     "gnim": "^1.9.0"
