@@ -7,15 +7,15 @@ A modular, geometric status bar built with [AGS (Aylur's GTK Shell)](https://git
 - **Geometric Design**: Uses Cairo drawing to create interlocking trapezoidal tiles.
 - **Modular Architecture**: "Base Tile" system allows modules to consume multiple "units" of space.
 - **Dynamic Parity**: Tiles automatically adjust their shape (Upright `/ \` vs Inverted `\ /`) based on their position in the bar.
-- **Customizable**: Built with standard CSS (SCSS) and JavaScript/GJS.
+- **Customizable**: Built with TypeScript and SCSS.
 
 ## Prerequisites
 
 To use this configuration, you need:
 
-- **AGS**: Aylur's GTK Shell (command `ags` must be in your PATH)
-- **GJS**: GNOME JavaScript bindings
-- **GTK3**: The GTK toolkit
+- **AGS**: Aylur's GTK Shell (command `ags` must be in your PATH; AGS is built on GJS)
+- **TypeScript**: The codebase is written in TypeScript (compiled to JavaScript for AGS)
+- **GTK4**: The GTK toolkit
 - **Sassc**: For compiling SCSS to CSS (`sassc` command)
 - **Node.js & npm**: For managing TypeScript definitions and development tools.
 
@@ -81,23 +81,6 @@ npm install
 npm start
 # or
 ags run app.ts
-```
-
-### 3. TypeScript Setup
-
-Initialize the project and install types:
-
-```bash
-npm install
-```
-
-### 3. Setup TypeScript (Optional but Recommended)
-
-Initialize the project to get IntelliSense support:
-
-```bash
-npm init -y
-npm install -D ags-types
 ```
 
 ## Architecture

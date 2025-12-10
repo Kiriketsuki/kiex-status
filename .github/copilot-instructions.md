@@ -62,7 +62,7 @@ The project implements a unique "interlocking tile" visual system using Cairo dr
 
 ## Git Workflow & Versioning
 
-- **Versioning**: 4-digit system (`Major.Minor.Patch.Hotfix`) stored in `VERSION`.
+- **Versioning**: 5-part versioning system (`Release.Major.Minor.Patch[Hotfix]`) stored in `VERSION`.
 - **Branches**:
   - `main`: Development (PR target for features).
   - `release`: Production (PR target for releases).
