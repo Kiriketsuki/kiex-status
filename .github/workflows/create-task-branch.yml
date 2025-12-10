@@ -100,6 +100,6 @@ jobs:
             exit 0
           fi
 
-          gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "Implements #$ISSUE_NUMBER: $ISSUE_TITLE" --body "$ISSUE_BODY" --label "implementation" --draft
+          gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "Implements #$ISSUE_NUMBER: $ISSUE_TITLE" --body "$ISSUE_BODY"$'\n\n'"Closes #$ISSUE_NUMBER" --label "implementation" --draft
 
           gh issue comment "$ISSUE_NUMBER" --body "Created branch \`$BRANCH_NAME\` and opened draft PR."
