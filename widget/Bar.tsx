@@ -2,15 +2,11 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { createPoll } from "ags/time"
-import {
-  drawPolyTile,
-  drawSubtileBoundaries,
-  drawUnitBoundaries,
-  getPolyTileWidth,
-  TILE_HEIGHT,
-} from "../lib/drawing"
+import Tile from "./Tile"
+import TileGroup from "./TileGroup"
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
+  print("Rendering Bar component")
   const time = createPoll("", 1000, "date")
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
 
@@ -33,42 +29,113 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         >
           <label label="Welcome to AGS!" />
         </button>
-        <drawingarea
-          $type="center"
-          css={`
-            min-width: ${getPolyTileWidth(2)}px;
-            min-height: ${TILE_HEIGHT}px;
-          `}
-          onRealize={(self) => {
-            self.set_draw_func(
-              (_, cr, width, height) => {
-                cr.setSourceRGBA(0.2, 0.2, 0.2, 1) // Dark Gray Background
-                cr.paint()
+        <box $type="center" hexpand halign={Gtk.Align.CENTER} spacing={10}>
+          {/* Example 0: Single 1-unit tile */}
+          <Tile
+            units={1}
+            offset={0}
+            baseColor="rgba(255, 100, 150, 1)"
+            showGrid={false}
+          >
+            <label
+              label="Hi"
+              css="color: white; font-weight: bold; font-size: 12px;"
+            />
+          </Tile>
 
-                cr.setSourceRGBA(0.4, 0.6, 1, 1) // Blueish
-                // Draw a 2-unit tile starting upright
-                drawPolyTile(cr, width, height, 2, true)
-                cr.fill()
+          {/* Example 1: Single tile with CPU label */}
+          <Tile
+            units={2}
+            offset={0}
+            baseColor="rgba(100, 150, 255, 1)"
+            subtiles={{ 1: "rgba(255, 0, 0, 1)" }}
+            showGrid={true}
+          >
+            <label label="CPU" css="color: white; font-weight: bold;" />
+          </Tile>
 
-                // Draw Subtile Boundaries (Thinner, lighter)
-                cr.setSourceRGBA(0, 0, 0, 0.5)
-                cr.setLineWidth(1)
-                drawSubtileBoundaries(cr, height, 2, true)
-                cr.stroke()
+          {/* Example 2: TileGroup with overlay spanning multiple tiles */}
+          <TileGroup
+            tiles={[
+              <Tile
+                units={2}
+                offset={1}
+                baseColor="rgba(70, 130, 180, 1)"
+                subtiles={{
+                  0: "rgba(0, 255, 100, 1)",
+                  5: "rgba(255, 165, 0, 1)",
+                }}
+                showGrid={false}
+              />,
+              <Tile
+                units={2}
+                offset={0}
+                baseColor="rgba(100, 150, 200, 1)"
+                subtiles={{ 2: "rgba(255, 200, 0, 1)" }}
+                showGrid={false}
+              />,
+            ]}
+            spacing={0}
+            overlay={
+              <button
+                css="background: rgba(0,0,0,0.5); border-radius: 5px; padding: 5px 15px;"
+                onClicked={() => {
+                  print("🔘 Spanning button clicked!")
+                  execAsync(
+                    "notify-send 'TileGroup' 'This button spans both tiles!'"
+                  ).catch(console.error)
+                }}
+              >
+                <label
+                  label="Click Me"
+                  css="color: white; font-weight: bold;"
+                />
+              </button>
+            }
+          />
 
-                // Draw Unit Boundaries (Thicker, darker)
-                cr.setSourceRGBA(0, 0, 0, 1)
-                cr.setLineWidth(2)
-                drawUnitBoundaries(cr, height, 2, true)
-                cr.stroke()
-              },
-              null,
-              null
-            )
-          }}
-        />
+          {/* Example 2: Single tile with its own overlay */}
+          <Tile
+            units={3}
+            offset={0}
+            baseColor="rgba(50, 50, 50, 1)"
+            subtiles={{
+              0: "rgba(255, 0, 0, 1)",
+              3: "rgba(0, 255, 0, 1)",
+              6: "rgba(0, 0, 255, 1)",
+            }}
+            showGrid={true}
+          >
+            <box
+              orientation={Gtk.Orientation.VERTICAL}
+              spacing={5}
+              halign={Gtk.Align.CENTER}
+              valign={Gtk.Align.CENTER}
+              css="background: rgba(0,0,0,0.5); border-radius: 5px; padding: 10px;"
+            >
+              <label
+                label="Memory: 4.2GB"
+                css="color: white; font-weight: bold;"
+              />
+              <box spacing={5}>
+                <button
+                  css="background: rgba(255,255,255,0.2); border-radius: 3px; min-width: 30px;"
+                  onClicked={() => print("⬆️ Up arrow clicked")}
+                >
+                  <label label="↑" css="color: white;" />
+                </button>
+                <button
+                  css="background: rgba(255,255,255,0.2); border-radius: 3px; min-width: 30px;"
+                  onClicked={() => print("⬇️ Down arrow clicked")}
+                >
+                  <label label="↓" css="color: white;" />
+                </button>
+              </box>
+            </box>
+          </Tile>
+        </box>
         <menubutton $type="end" hexpand halign={Gtk.Align.CENTER}>
-          <label label={time} />
+          <label label={time} widthRequest={200} halign={Gtk.Align.CENTER} />
           <popover>
             <Gtk.Calendar />
           </popover>

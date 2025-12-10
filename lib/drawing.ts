@@ -51,6 +51,43 @@ export function drawPolyTile(
 }
 
 /**
+ * Draws the path for a single triangular subtile.
+ * @param cr - The drawing context
+ * @param height - Widget height
+ * @param index - The 0-based index of the triangle (0 to 3N-1)
+ * @param startUpright - True if the first tile is Upright
+ */
+export function drawTriangle(
+  cr: Cairo.Context,
+  height: number,
+  index: number,
+  startUpright: boolean
+) {
+  const stepX = SLANT
+  const x1 = index * stepX
+  const x2 = (index + 1) * stepX
+  const x3 = (index + 2) * stepX
+
+  // Determine orientation of this specific triangle
+  // If startUpright=true: 0 is Upright (/\), 1 is Inverted (\/)
+  // If startUpright=false: 0 is Inverted (\/), 1 is Upright (/\)
+  const isUprightTriangle = startUpright ? index % 2 === 0 : index % 2 !== 0
+
+  if (isUprightTriangle) {
+    // Upright / \ : Bottom-Left, Top-Center, Bottom-Right
+    cr.moveTo(x1, height)
+    cr.lineTo(x2, 0)
+    cr.lineTo(x3, height)
+  } else {
+    // Inverted \ / : Top-Left, Bottom-Center, Top-Right
+    cr.moveTo(x1, 0)
+    cr.lineTo(x2, height)
+    cr.lineTo(x3, 0)
+  }
+  cr.closePath()
+}
+
+/**
  * Draws the dividing lines between subtiles (equilateral triangles) within a unit.
  * Excludes the boundaries between units and the outer edges.
  */
