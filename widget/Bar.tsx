@@ -2,6 +2,7 @@ import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { createPoll } from "ags/time"
+import { drawPolyTile } from "../lib/drawing"
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   const time = createPoll("", 1000, "date")
@@ -26,7 +27,25 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         >
           <label label="Welcome to AGS!" />
         </button>
-        <box $type="center" />
+        <drawingarea
+          $type="center"
+          css="min-width: 100px; min-height: 40px;"
+          onRealize={(self) => {
+            self.set_draw_func(
+              (_, cr, width, height) => {
+                cr.setSourceRGBA(0.2, 0.2, 0.2, 1) // Dark Gray Background
+                cr.paint()
+
+                cr.setSourceRGBA(0.4, 0.6, 1, 1) // Blueish
+                // Draw a 2-unit tile starting upright
+                drawPolyTile(cr, width, height, 2, true)
+                cr.fill()
+              },
+              null,
+              null
+            )
+          }}
+        />
         <menubutton $type="end" hexpand halign={Gtk.Align.CENTER}>
           <label label={time} />
           <popover>
