@@ -15,12 +15,15 @@ jobs:
     permissions:
       contents: write
       issues: write
-      pull-requests: write
+    outputs:
+      branch_name: ${{ steps.create.outputs.branch_name }}
+      base_branch: ${{ steps.create.outputs.base_branch }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Create Branch
+        id: create
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -46,9 +49,12 @@ jobs:
           SAFE_TITLE=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed -E 's/^\[?task\]?[-: ]+ ?//' | sed -e 's/[^a-z0-9 ]//g' | tr -s ' ' | tr ' ' '-')
           BRANCH_NAME="task/$ISSUE_NUMBER-$SAFE_TITLE"
 
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "base_branch=$BASE_BRANCH" >> $GITHUB_OUTPUT
+
           # Check if branch exists
           if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-            echo "Branch $BRANCH_NAME already exists. Skipping."
+            echo "Branch $BRANCH_NAME already exists. Skipping creation."
             exit 0
           fi
 
@@ -59,6 +65,40 @@ jobs:
 
           git commit --allow-empty -m "chore: initialize branch for issue #$ISSUE_NUMBER"
           git push origin "$BRANCH_NAME"
+
+  create_pr:
+    needs: create_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ needs.create_branch.outputs.branch_name }}
+          BASE_BRANCH: ${{ needs.create_branch.outputs.base_branch }}
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ISSUE_NUMBER="${{ inputs.issue_number }}"
+          else
+            ISSUE_NUMBER="${{ github.event.issue.number }}"
+          fi
+
+          # Fetch issue details
+          ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --json title,body)
+          ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r .title)
+          ISSUE_BODY=$(echo "$ISSUE_JSON" | jq -r .body)
+
+          # Check if PR already exists
+          if gh pr view "$BRANCH_NAME" --json url >/dev/null 2>&1; then
+            echo "PR for branch $BRANCH_NAME already exists. Skipping."
+            exit 0
+          fi
 
           gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "Implements #$ISSUE_NUMBER: $ISSUE_TITLE" --body "$ISSUE_BODY" --label "implementation" --draft
 
