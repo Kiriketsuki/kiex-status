@@ -1,11 +1,11 @@
-name: Create Feature Branch
+name: Create Bug Branch
 on:
   issues:
     types: [opened]
 
 jobs:
   create_branch:
-    if: contains(github.event.issue.labels.*.name, 'feature')
+    if: contains(github.event.issue.labels.*.name, 'bug')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,21 +26,29 @@ jobs:
           ISSUE_BODY="${{ github.event.issue.body }}"
 
           # Extract Parent Issue Number from body
-          # Looking for "### Parent Task Issue Number" followed by the number
-          PARENT_ID=$(echo "$ISSUE_BODY" | grep -A 2 "### Parent Task Issue Number" | tail -n 1 | tr -d ' \r\n')
+          # Looking for "### Parent Issue Number (Task or Feature)" followed by the number
+          PARENT_ID=$(echo "$ISSUE_BODY" | grep -A 2 "### Parent Issue Number (Task or Feature)" | tail -n 1 | tr -d ' \r\n')
 
           BASE_BRANCH="main"
 
           if [[ "$PARENT_ID" =~ ^[0-9]+$ ]]; then
             echo "Parent Issue ID found: $PARENT_ID"
-            # Find branch starting with task/$PARENT_ID
-            # We need to fetch all branches first
-            git fetch --all
-            PARENT_BRANCH=$(git branch -r | grep "origin/task/$PARENT_ID-" | head -n 1 | sed 's/origin\///' | xargs)
             
-            if [ -n "$PARENT_BRANCH" ]; then
-              echo "Found parent branch: $PARENT_BRANCH"
-              BASE_BRANCH="$PARENT_BRANCH"
+            # Fetch all branches
+            git fetch --all
+            
+            # Try to find a task branch first
+            TASK_BRANCH=$(git branch -r | grep "origin/task/$PARENT_ID-" | head -n 1 | sed 's/origin\///' | xargs)
+            
+            # Try to find a feature branch
+            FEATURE_BRANCH=$(git branch -r | grep "origin/feature/$PARENT_ID-" | head -n 1 | sed 's/origin\///' | xargs)
+            
+            if [ -n "$TASK_BRANCH" ]; then
+              echo "Found parent task branch: $TASK_BRANCH"
+              BASE_BRANCH="$TASK_BRANCH"
+            elif [ -n "$FEATURE_BRANCH" ]; then
+              echo "Found parent feature branch: $FEATURE_BRANCH"
+              BASE_BRANCH="$FEATURE_BRANCH"
             else
               echo "Parent branch not found for issue $PARENT_ID. Defaulting to main."
             fi
@@ -50,7 +58,7 @@ jobs:
 
           # Sanitize title
           SAFE_TITLE=$(echo "$ISSUE_TITLE" | sed -e 's/[^a-zA-Z0-9 ]//g' | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
-          BRANCH_NAME="feature/$ISSUE_NUMBER-$SAFE_TITLE"
+          BRANCH_NAME="bug/$ISSUE_NUMBER-$SAFE_TITLE"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

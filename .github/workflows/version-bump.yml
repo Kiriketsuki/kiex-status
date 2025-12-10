@@ -1,0 +1,117 @@
+name: Version Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - "task/**"
+      - "feature/**"
+  push:
+    branches:
+      - main
+      - "task/**"
+      - "feature/**"
+
+jobs:
+  bump-version:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Determine Bump Type
+        id: bump_type
+        run: |
+          BUMP_TYPE="none"
+          SOURCE_BRANCH=""
+          TARGET_BRANCH="${{ github.ref_name }}"
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            SOURCE_BRANCH="${{ github.event.pull_request.head.ref }}"
+          else
+            # For push events, try to extract branch from commit message if it's a merge
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            echo "Commit message: $COMMIT_MSG"
+            # Regex to find 'Merge pull request #... from .../branch-name' or 'Merge branch 'branch-name''
+            if [[ "$COMMIT_MSG" =~ from\ .*/(task|feature|bug|hotfix)/ ]]; then
+               SOURCE_BRANCH=$(echo "$COMMIT_MSG" | grep -oE '(task|feature|bug|hotfix)/[^ ]+')
+            elif [[ "$COMMIT_MSG" =~ Merge\ branch\ \'(task|feature|bug|hotfix)/ ]]; then
+               SOURCE_BRANCH=$(echo "$COMMIT_MSG" | grep -oE '(task|feature|bug|hotfix)/[^ ]+' | tr -d "'")
+            fi
+          fi
+
+          echo "Source Branch: $SOURCE_BRANCH"
+          echo "Target Branch: $TARGET_BRANCH"
+
+          # Logic for bumping based on hierarchy
+          # Bug -> Feature: Bump Bug (Patch)
+          # Feature -> Task: Bump Minor
+          # Task -> Main: Bump Major
+
+          if [[ "$TARGET_BRANCH" == "main" ]]; then
+            if [[ "$SOURCE_BRANCH" == task/* ]]; then
+              BUMP_TYPE="major"
+            elif [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
+              BUMP_TYPE="hotfix"
+            fi
+          elif [[ "$TARGET_BRANCH" == task/* ]]; then
+            if [[ "$SOURCE_BRANCH" == feature/* ]]; then
+              BUMP_TYPE="minor"
+            fi
+          elif [[ "$TARGET_BRANCH" == feature/* ]]; then
+            if [[ "$SOURCE_BRANCH" == bug/* ]]; then
+              BUMP_TYPE="bug"
+            fi
+          fi
+
+          echo "Bump Type: $BUMP_TYPE"
+          echo "BUMP_TYPE=$BUMP_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Bump Version
+        if: steps.bump_type.outputs.BUMP_TYPE != 'none'
+        run: |
+          CURRENT_VERSION=$(cat VERSION)
+          IFS='.' read -r -a parts <<< "$CURRENT_VERSION"
+
+          MAJOR=${parts[0]}
+          MINOR=${parts[1]}
+          BUG=${parts[2]}
+          HOTFIX=${parts[3]}
+
+          TYPE="${{ steps.bump_type.outputs.BUMP_TYPE }}"
+
+          if [ "$TYPE" == "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            BUG=0
+            HOTFIX=0
+          elif [ "$TYPE" == "minor" ]; then
+            MINOR=$((MINOR + 1))
+            BUG=0
+            HOTFIX=0
+          elif [ "$TYPE" == "bug" ]; then
+            BUG=$((BUG + 1))
+            HOTFIX=0
+          elif [ "$TYPE" == "hotfix" ]; then
+            HOTFIX=$((HOTFIX + 1))
+          fi
+
+          NEW_VERSION="$MAJOR.$MINOR.$BUG.$HOTFIX"
+          echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
+          echo "$NEW_VERSION" > VERSION
+
+          # Update package.json
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add VERSION package.json
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+          git push origin "${{ github.ref_name }}"
