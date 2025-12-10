@@ -26,7 +26,7 @@ The logic is handled in `lib/drawing.ts` via the `drawSubtileBoundaries` functio
 
 1.  **Total Triangles**: The total number of subtiles (triangles) is `3 * units`.
 2.  **Step Size**: The horizontal distance between vertices is `SLANT`.
-3.  **Skipping Boundaries**: The function iterates through all potential vertical lines but skips the lines that correspond to the boundaries between Units (indices `3k + 1`). This ensures that we only draw the _internal_ structure of the unit.
+3.  **Skipping Boundaries**: The function iterates through all potential vertical lines but skips the lines that correspond to the boundaries between Units (indices 4, 7, 10, ...; i.e., `3k + 1` for `k = 1, 2, 3, ...`, or more clearly, every third index starting from 4). This ensures that we only draw the _internal_ structure of the unit.
 
 ### Visual Representation
 
