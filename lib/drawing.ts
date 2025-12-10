@@ -3,7 +3,7 @@ import Cairo from "cairo"
 export const SIDE_LENGTH = 40
 export const TILE_HEIGHT = (SIDE_LENGTH * Math.sqrt(3)) / 2
 export const SLANT = SIDE_LENGTH / 2
-export const TILE_WIDTH = SIDE_LENGTH // Flat top width of a single upright triangle? No, flat top of upright trapezoid is SIDE_LENGTH.
+export const TILE_WIDTH = SIDE_LENGTH // Flat top width of a single upright trapezoid (equals SIDE_LENGTH)
 
 /**
  * Calculates the total width for a poly tile with N units.
@@ -63,7 +63,7 @@ export function drawSubtileBoundaries(
   const numTriangles = 3 * units
   const stepX = SLANT
 
-  for (let i = 2; i < numTriangles; i++) {
+  for (let i = 2; i <= numTriangles; i++) {
     // i is the index of the line segment (1-based)
     // Line 1 is Left Edge. Line 3N is Right Edge.
     // Unit boundaries are at i = 3k + 1 (4, 7, 10...)
@@ -109,7 +109,7 @@ export function drawUnitBoundaries(
   const numTriangles = 3 * units
   const stepX = SLANT
 
-  for (let i = 2; i < numTriangles; i++) {
+  for (let i = 2; i <= numTriangles; i++) {
     if (i % 3 === 1) {
       const xStart = (i - 1) * stepX
       const xEnd = i * stepX
