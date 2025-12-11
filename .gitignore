@@ -1,2 +1,8 @@
 node_modules/
 @girs/
+
+# Backup files
+*.backup
+*~
+*.swp
+*.swo
