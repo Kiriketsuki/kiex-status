@@ -8,8 +8,8 @@ const PALETTE_PATH = `${rootDir}/palette.css`
 let cachedPalette: Record<string, string> | null = null
 
 function readFile(path: string): string {
-  const [success, content] = GLib.file_get_contents(path)
-  if (!success) {
+  const [content] = GLib.file_get_contents(path)
+  if (!content) {
     throw new Error(`Could not read file: ${path}`)
   }
   // @ts-ignore

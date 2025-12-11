@@ -133,7 +133,7 @@ export default function Tile({
         )
         // Fallback: use baseColor
         const fallback = new Gdk.RGBA()
-        if (fallback.parse(effectiveBaseColor)) {
+        if (effectiveBaseColor && fallback.parse(effectiveBaseColor)) {
           cr.setSourceRGBA(
             fallback.red,
             fallback.green,
