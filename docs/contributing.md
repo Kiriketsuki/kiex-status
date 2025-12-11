@@ -121,7 +121,6 @@ git commit -m "bug: fix typo in installation guide"
 
 **Best Practice**: Even for emergency hotfixes, create an issue and let automation handle the branch/PR creation when possible. This maintains full traceability and follows proper review processes.
 
-### Direct Push Version Bumping (Use Sparingly)
 
 ## 🔄 Best Practices for Merging
 

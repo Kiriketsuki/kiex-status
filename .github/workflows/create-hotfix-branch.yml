@@ -310,7 +310,7 @@ jobs:
                       }
 
                       // Create the PR
-                      const { data: pr } = await github.rest.pulls.create({{
+                      const { data: pr } = await github.rest.pulls.create({
                         owner: context.repo.owner,
                         repo: context.repo.repo,
                         title: `[Hotfix #${issue_number}] ${issue_title.replace(/^\[?HOTFIX\]?:?\s*/, '')}`,

@@ -17,6 +17,33 @@ echo -e "${BLUE}║  Issue-Driven Hierarchy Template Setup Script       ║${NC}
 echo -e "${BLUE}╚═══════════════════════════════════════════════════════╝${NC}"
 echo ""
 
+# Function to prompt for input with default value
+prompt_with_default() {
+    local prompt="$1"
+    local default="$2"
+    local result
+    
+    read -p "$(echo -e ${GREEN}${prompt}${NC} [${YELLOW}${default}${NC}]): " result
+    echo "${result:-$default}"
+}
+
+# Function to prompt for yes/no
+prompt_yes_no() {
+    local prompt="$1"
+    local default="$2"
+    local result
+    
+    while true; do
+        read -p "$(echo -e ${GREEN}${prompt}${NC} [${YELLOW}${default}${NC}]): " result
+        result="${result:-$default}"
+        case "$result" in
+            [Yy]* ) return 0;;
+            [Nn]* ) return 1;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+}
+
 # Validate we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
     echo -e "${RED}✗ Error: Not a git repository!${NC}"
@@ -56,33 +83,6 @@ fi
 
 echo -e "${GREEN}✓${NC} All required files found"
 echo ""
-
-# Function to prompt for input with default value
-prompt_with_default() {
-    local prompt="$1"
-    local default="$2"
-    local result
-    
-    read -p "$(echo -e ${GREEN}${prompt}${NC} [${YELLOW}${default}${NC}]): " result
-    echo "${result:-$default}"
-}
-
-# Function to prompt for yes/no
-prompt_yes_no() {
-    local prompt="$1"
-    local default="$2"
-    local result
-    
-    while true; do
-        read -p "$(echo -e ${GREEN}${prompt}${NC} [${YELLOW}${default}${NC}]): " result
-        result="${result:-$default}"
-        case "$result" in
-            [Yy]* ) return 0;;
-            [Nn]* ) return 1;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-}
 
 echo -e "${YELLOW}This script will help you customize the template for your project.${NC}"
 echo ""
@@ -150,7 +150,7 @@ sed -i.bak \
     -e "s|template-repo|$PROJECT_NAME|g" \
     -e "s|Template-Repo|$PROJECT_NAME|g" \
     .github/copilot-instructions.md
-rm .github/copilot-instructions.bak 2>/dev/null || true
+rm .github/copilot-instructions.md.bak 2>/dev/null || true
 
 # Create project-specific README
 echo -e "${GREEN}✓${NC} Creating PROJECT_README.md template..."
@@ -200,7 +200,7 @@ echo -e "${GREEN}✓${NC} Validating VERSION file..."
 VERSION_CONTENT=$(cat VERSION)
 if [[ ! "$VERSION_CONTENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+([a-z])?$ ]]; then
     echo -e "${YELLOW}⚠ Warning: VERSION file has unexpected format: $VERSION_CONTENT${NC}"
-    echo "Expected format: Major.Task.Feature.Bug[a-z] (e.g., 0.0.0.0)"
+    echo "Expected format: Major.Task.Feature.Bug[a-z] (e.g., 0.1.0.0 or 0.1.0.0a)"
     if prompt_yes_no "Reset VERSION to 0.1.0.0?" "y"; then
         echo "0.1.0.0" > VERSION
         jq '.version = "0.1.0.0"' package.json > package.json.tmp && mv package.json.tmp package.json
