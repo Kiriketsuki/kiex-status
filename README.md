@@ -109,7 +109,8 @@ kiex-status/
 │   └── drawing.ts     # Cairo drawing logic
 ├── widget/
 │   ├── Bar.tsx        # Main bar widget
-│   └── Tile.tsx       # Reusable Tile component
+│   ├── Tile.tsx       # Reusable Tile component
+│   └── TileGroup.tsx  # Groups multiple Tiles together
 ├── modules/           # Future modules
 └── docs/
     └── tile_component.md  # Tile component documentation

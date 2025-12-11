@@ -13,7 +13,7 @@ The `Tile` component is a reusable widget that renders geometric trapezoidal til
 | `subtiles`  | `Record<number, string>` | `{}`                    | Map of subtile indices to color strings      |
 | `baseColor` | `string`                 | `"rgba(50, 50, 50, 1)"` | Base tile fill color (hex or rgba)           |
 | `showGrid`  | `boolean`                | `false`                 | Whether to show internal triangle grid lines |
-| `children`  | `any`                    | `undefined`             | Child widgets to render alongside the tile   |
+| `children`  | `any`                    | `undefined`             | Child widgets to render overlaid on top of the tile |
 | `className` | `string`                 | `undefined`             | CSS class name                               |
 | `css`       | `string`                 | `undefined`             | Inline CSS styles                            |
 
