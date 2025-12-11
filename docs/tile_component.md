@@ -220,4 +220,4 @@ If the bar flickers or redraws constantly:
 
 - `lib/drawing.ts`: Core Cairo drawing functions
 - `widget/Bar.tsx`: Example usage in the main bar
-- `docs/COPILOT_INSTRUCTIONS.md`: Architecture guidelines
+- `.github/copilot-instructions.md`: Architecture guidelines

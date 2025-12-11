@@ -135,7 +135,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           </Tile>
         </box>
         <menubutton $type="end" hexpand halign={Gtk.Align.CENTER}>
-          <label label={time} widthRequest={200} halign={Gtk.Align.CENTER} />
+          <label label={time()} widthRequest={200} halign={Gtk.Align.CENTER} />
           <popover>
             <Gtk.Calendar />
           </popover>
