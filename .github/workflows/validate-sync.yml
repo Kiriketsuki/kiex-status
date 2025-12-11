@@ -1,0 +1,71 @@
+name: Validate Version Sync
+on:
+    push:
+        paths:
+            - VERSION
+            - package.json
+    pull_request:
+        paths:
+            - VERSION
+            - package.json
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    validate_sync:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Validate VERSION File Exists
+              run: |
+                  if [ ! -f VERSION ]; then
+                    echo "::error::VERSION file not found!"
+                    exit 1
+                  fi
+
+            - name: Validate package.json Exists
+              run: |
+                  if [ ! -f package.json ]; then
+                    echo "::error::package.json file not found!"
+                    exit 1
+                  fi
+
+            - name: Check Version Format
+              run: |
+                  version=$(cat VERSION)
+                  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+([a-z])?$ ]]; then
+                    echo "::error::Invalid version format in VERSION file: $version"
+                    echo "::error::Expected format: Major.Task.Feature.Bug[a-z] (e.g., 0.1.2.1 or 0.1.2.1a)"
+                    exit 1
+                  fi
+                  echo "VERSION file format is valid: $version"
+
+            - name: Check Version Sync
+              run: |
+                  version_file=$(cat VERSION)
+                  package_version=$(jq -r '.version' package.json)
+
+                  if [ "$version_file" != "$package_version" ]; then
+                    echo "::error::Version mismatch detected!"
+                    echo "::error::VERSION file: $version_file"
+                    echo "::error::package.json: $package_version"
+                    echo "::error::These files must contain the same version number."
+                    echo "::error::Run: jq --arg v \"\$(cat VERSION)\" '.version = \$v' package.json > package.json.tmp && mv package.json.tmp package.json"
+                    exit 1
+                  fi
+
+                  echo "✅ Versions are in sync: $version_file"
+
+            - name: Validate Hotfix Letter Overflow
+              run: |
+                  version=$(cat VERSION)
+                  if [[ "$version" =~ ([a-z])$ ]]; then
+                    hotfix_letter="${BASH_REMATCH[1]}"
+                    if [[ "$hotfix_letter" > "y" ]]; then
+                      echo "::warning::Hotfix letter is '$hotfix_letter'. Consider bumping to next bug fix version instead of continuing hotfix letters past 'z'."
+                    fi
+                  fi

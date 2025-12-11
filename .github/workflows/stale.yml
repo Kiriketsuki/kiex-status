@@ -1,0 +1,70 @@
+name: Close Stale Issues and PRs
+on:
+    schedule:
+        # Run daily at 00:00 UTC
+        - cron: "0 0 * * *"
+    workflow_dispatch:
+
+permissions:
+    issues: write
+    pull-requests: write
+
+jobs:
+    stale:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Mark and Close Stale Issues and PRs
+              uses: actions/stale@v9
+              with:
+                  # Stale issue configuration
+                  stale-issue-message: |
+                      This issue has been automatically marked as stale because it has been open for 60 days with no activity.
+
+                      **What happens next:**
+                      - If no activity occurs within 30 days, this issue will be automatically closed.
+                      - To keep this issue open, add a comment or update the issue.
+                      - Issues labeled with `pinned` or `security` will never be marked as stale.
+
+                      If this issue is still relevant, please comment to keep it open.
+                  close-issue-message: |
+                      This issue has been automatically closed due to 90 days of inactivity.
+
+                      If you believe this issue is still relevant, please:
+                      1. Reopen the issue
+                      2. Add a comment explaining why it should remain open
+                      3. Consider adding the `pinned` label to prevent future auto-closure
+                  days-before-stale: 60
+                  days-before-close: 30
+                  stale-issue-label: "stale"
+                  exempt-issue-labels: "pinned,security,in-progress"
+
+                  # Stale PR configuration
+                  stale-pr-message: |
+                      This pull request has been automatically marked as stale because it has been open for 30 days with no activity.
+
+                      **What happens next:**
+                      - If no activity occurs within 14 days, this PR will be automatically closed.
+                      - To keep this PR open, push new commits or add a comment.
+                      - PRs labeled with `pinned` or `work-in-progress` will never be marked as stale.
+
+                      If this PR is still relevant, please update it or add a comment.
+                  close-pr-message: |
+                      This pull request has been automatically closed due to 44 days of inactivity.
+
+                      If you still want to merge this PR, please:
+                      1. Rebase on the latest base branch
+                      2. Resolve any conflicts
+                      3. Request a new review
+                      4. Consider adding the `pinned` label to prevent future auto-closure
+                  days-before-pr-stale: 30
+                  days-before-pr-close: 14
+                  stale-pr-label: "stale"
+                  exempt-pr-labels: "pinned,work-in-progress,security"
+
+                  # General configuration
+                  operations-per-run: 100
+                  remove-stale-when-updated: true
+                  enable-statistics: true
+
+                  # Only process issues/PRs, not drafts
+                  exempt-draft-pr: true

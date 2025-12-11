@@ -7,13 +7,13 @@ on:
       - main
       - "task/**"
       - "feature/**"
-      - "hotfix/**"
+      - "bug/**"
   push:
     branches:
       - main
       - "task/**"
       - "feature/**"
-      - "hotfix/**"
+      - "bug/**"
 
 jobs:
   bump-version:
@@ -52,15 +52,16 @@ jobs:
           echo "Target Branch: $TARGET_BRANCH"
 
           # Logic for bumping based on hierarchy
-          # Bug -> Feature: Bump Bug (Patch)
-          # Feature -> Task: Bump Minor
-          # Task -> Main: Bump Major
+          # Hotfix -> Bug/Feature/Task: Bump Hotfix (letter suffix)
+          # Bug -> Feature/Task: Bump Bug (4th digit)
+          # Feature -> Task: Bump Feature (3rd digit)
+          # Task -> Main: Bump Task (2nd digit)
 
           if [[ "$TARGET_BRANCH" == "main" ]]; then
             if [[ "$SOURCE_BRANCH" == task/* ]]; then
-              BUMP_TYPE="major"
+              BUMP_TYPE="task"
             elif [[ "$SOURCE_BRANCH" == feature/* ]]; then
-              BUMP_TYPE="minor"
+              BUMP_TYPE="feature"
             elif [[ "$SOURCE_BRANCH" == bug/* ]]; then
               BUMP_TYPE="bug"
             elif [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
@@ -68,11 +69,19 @@ jobs:
             fi
           elif [[ "$TARGET_BRANCH" == task/* ]]; then
             if [[ "$SOURCE_BRANCH" == feature/* ]]; then
-              BUMP_TYPE="minor"
+              BUMP_TYPE="feature"
+            elif [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
+              BUMP_TYPE="hotfix"
             fi
           elif [[ "$TARGET_BRANCH" == feature/* ]]; then
             if [[ "$SOURCE_BRANCH" == bug/* ]]; then
               BUMP_TYPE="bug"
+            elif [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
+              BUMP_TYPE="hotfix"
+            fi
+          elif [[ "$TARGET_BRANCH" == bug/* ]]; then
+            if [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
+              BUMP_TYPE="hotfix"
             fi
           fi
 
@@ -83,13 +92,13 @@ jobs:
         if: steps.bump_type.outputs.BUMP_TYPE != 'none'
         run: |
           CURRENT_VERSION=$(cat VERSION)
-          # Regex to parse Release.Major.Minor.Patch[Hotfix]
+          # Regex to parse Major.Task.Feature.Bug[Hotfix]
           # Examples: 0.1.0.0, 0.1.0.0a
           if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-z]*)$ ]]; then
-            RELEASE="${BASH_REMATCH[1]}"
-            MAJOR="${BASH_REMATCH[2]}"
-            MINOR="${BASH_REMATCH[3]}"
-            PATCH="${BASH_REMATCH[4]}"
+            MAJOR="${BASH_REMATCH[1]}"
+            TASK="${BASH_REMATCH[2]}"
+            FEATURE="${BASH_REMATCH[3]}"
+            BUG="${BASH_REMATCH[4]}"
             HOTFIX="${BASH_REMATCH[5]}"
           else
             echo "Error: Invalid version format in VERSION file: $CURRENT_VERSION"
@@ -98,17 +107,17 @@ jobs:
 
           TYPE="${{ steps.bump_type.outputs.BUMP_TYPE }}"
 
-          if [ "$TYPE" == "major" ]; then
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
+          if [ "$TYPE" == "task" ]; then
+            TASK=$((TASK + 1))
+            FEATURE=0
+            BUG=0
             HOTFIX=""
-          elif [ "$TYPE" == "minor" ]; then
-            MINOR=$((MINOR + 1))
-            PATCH=0
+          elif [ "$TYPE" == "feature" ]; then
+            FEATURE=$((FEATURE + 1))
+            BUG=0
             HOTFIX=""
           elif [ "$TYPE" == "bug" ]; then
-            PATCH=$((PATCH + 1))
+            BUG=$((BUG + 1))
             HOTFIX=""
           elif [ "$TYPE" == "hotfix" ]; then
             if [ -z "$HOTFIX" ]; then
@@ -122,7 +131,7 @@ jobs:
             fi
           fi
 
-          NEW_VERSION="$RELEASE.$MAJOR.$MINOR.$PATCH$HOTFIX"
+          NEW_VERSION="$MAJOR.$TASK.$FEATURE.$BUG$HOTFIX"
           echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
           echo "$NEW_VERSION" > VERSION
 
