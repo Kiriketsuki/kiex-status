@@ -44,6 +44,7 @@ export default function Tile({
     if (bg.parse(baseColor)) {
       cr.setSourceRGBA(bg.red, bg.green, bg.blue, bg.alpha)
     } else {
+      print(`[Tile] Failed to parse baseColor: ${baseColor}`)
       cr.setSourceRGBA(0.2, 0.2, 0.2, 1)
     }
     drawPolyTile(cr, w, h, units, startUpright)
@@ -72,6 +73,9 @@ export default function Tile({
   // If no children, return just the DrawingArea
   if (!children) {
     if (className) drawingArea.add_css_class(className)
+    if (css) (drawingArea as any).css = css
+    // Apply additional props
+    Object.assign(drawingArea, props)
     return drawingArea as any
   }
 
@@ -88,7 +92,9 @@ export default function Tile({
 
   // Apply props
   if (className) overlay.add_css_class(className)
-  if (css) overlay.set_css_classes([css])
+  if (css) (overlay as any).css = css
+  // Apply additional props
+  Object.assign(overlay, props)
 
   return overlay as any
 }

@@ -56,13 +56,26 @@ export function drawPolyTile(
  * @param height - Widget height
  * @param index - The 0-based index of the triangle (0 to 3N-1)
  * @param startUpright - True if the first tile is Upright
+ * @param units - Total number of units (for bounds validation)
  */
 export function drawTriangle(
   cr: Cairo.Context,
   height: number,
   index: number,
-  startUpright: boolean
+  startUpright: boolean,
+  units?: number
 ) {
+  // Validate index bounds if units is provided
+  if (units !== undefined) {
+    const maxIndex = 3 * units - 1
+    if (index < 0 || index > maxIndex) {
+      console.warn(
+        `drawTriangle: index ${index} is out of bounds [0, ${maxIndex}] for ${units} units`
+      )
+      return
+    }
+  }
+
   const stepX = SLANT
   const x1 = index * stepX
   const x2 = (index + 1) * stepX

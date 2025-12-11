@@ -40,6 +40,7 @@ export default function TileGroup({
   // If no overlay, just return the box
   if (!overlay) {
     if (className) tilesBox.add_css_class(className)
+    if (css) (tilesBox as any).css = css
     return tilesBox as any
   }
 
@@ -57,7 +58,7 @@ export default function TileGroup({
 
   // Apply props
   if (className) overlayContainer.add_css_class(className)
-  if (css) overlayContainer.set_css_classes([css])
+  if (css) (overlayContainer as any).css = css
 
   return overlayContainer as any
 }

@@ -94,7 +94,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
             }
           />
 
-          {/* Example 2: Single tile with its own overlay */}
+          {/* Example 3: Single tile with its own overlay */}
           <Tile
             units={3}
             offset={0}
