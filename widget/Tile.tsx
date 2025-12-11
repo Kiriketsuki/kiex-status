@@ -7,16 +7,7 @@ import {
   TILE_HEIGHT,
 } from "../lib/drawing"
 
-interface TileProps {
-  units: number
-  offset?: number
-  subtiles?: Record<number, string>
-  baseColor?: string
-  showGrid?: boolean
-  children?: any
-  className?: string
-  css?: string
-  // Safe GTK widget properties
+interface SafeWidgetProps {
   visible?: boolean
   sensitive?: boolean
   canFocus?: boolean
@@ -41,6 +32,51 @@ interface TileProps {
   name?: string
 }
 
+/**
+ * Applies safe GTK widget properties to a widget.
+ * Helper function to set common widget properties without recreating on each render.
+ */
+function applySafeProps(widget: any, props: SafeWidgetProps) {
+  if (props.visible !== undefined) widget.visible = props.visible
+  if (props.sensitive !== undefined) widget.sensitive = props.sensitive
+  if (props.canFocus !== undefined) widget.can_focus = props.canFocus
+  if (props.canTarget !== undefined) widget.can_target = props.canTarget
+  if (props.focusOnClick !== undefined)
+    widget.focus_on_click = props.focusOnClick
+  if (props.focusable !== undefined) widget.focusable = props.focusable
+  if (props.hasTooltip !== undefined) widget.has_tooltip = props.hasTooltip
+  if (props.tooltipText !== undefined) widget.tooltip_text = props.tooltipText
+  if (props.tooltipMarkup !== undefined)
+    widget.tooltip_markup = props.tooltipMarkup
+  if (props.halign !== undefined) widget.halign = props.halign
+  if (props.valign !== undefined) widget.valign = props.valign
+  if (props.hexpand !== undefined) widget.hexpand = props.hexpand
+  if (props.vexpand !== undefined) widget.vexpand = props.vexpand
+  if (props.hexpandSet !== undefined) widget.hexpand_set = props.hexpandSet
+  if (props.vexpandSet !== undefined) widget.vexpand_set = props.vexpandSet
+  if (props.marginStart !== undefined) widget.margin_start = props.marginStart
+  if (props.marginEnd !== undefined) widget.margin_end = props.marginEnd
+  if (props.marginTop !== undefined) widget.margin_top = props.marginTop
+  if (props.marginBottom !== undefined)
+    widget.margin_bottom = props.marginBottom
+  if (props.widthRequest !== undefined)
+    widget.width_request = props.widthRequest
+  if (props.heightRequest !== undefined)
+    widget.height_request = props.heightRequest
+  if (props.name !== undefined) widget.name = props.name
+}
+
+interface TileProps extends SafeWidgetProps {
+  units: number
+  offset?: number
+  subtiles?: Record<number, string>
+  baseColor?: string
+  showGrid?: boolean
+  children?: any
+  className?: string
+  css?: string
+}
+
 export default function Tile({
   units,
   offset = 0,
@@ -50,28 +86,7 @@ export default function Tile({
   children,
   className,
   css,
-  visible,
-  sensitive,
-  canFocus,
-  canTarget,
-  focusOnClick,
-  focusable,
-  hasTooltip,
-  tooltipText,
-  tooltipMarkup,
-  halign,
-  valign,
-  hexpand,
-  vexpand,
-  hexpandSet,
-  vexpandSet,
-  marginStart,
-  marginEnd,
-  marginTop,
-  marginBottom,
-  widthRequest,
-  heightRequest,
-  name,
+  ...safeProps
 }: TileProps) {
   const width = getPolyTileWidth(units)
   const startUpright = offset % 2 === 0
@@ -101,6 +116,24 @@ export default function Tile({
         cr.setSourceRGBA(color.red, color.green, color.blue, color.alpha)
         drawTriangle(cr, h, index, startUpright, units)
         cr.fill()
+      } else {
+        print(
+          `[Tile] Failed to parse subtile color at index ${index}: ${colorStr}`
+        )
+        // Fallback: use baseColor
+        const fallback = new Gdk.RGBA()
+        if (fallback.parse(baseColor)) {
+          cr.setSourceRGBA(
+            fallback.red,
+            fallback.green,
+            fallback.blue,
+            fallback.alpha
+          )
+        } else {
+          cr.setSourceRGBA(0.2, 0.2, 0.2, 1)
+        }
+        drawTriangle(cr, h, index, startUpright, units)
+        cr.fill()
       }
     }
 
@@ -113,37 +146,11 @@ export default function Tile({
     }
   })
 
-  // Apply safe widget properties to a helper function
-  const applySafeProps = (widget: any) => {
-    if (visible !== undefined) widget.visible = visible
-    if (sensitive !== undefined) widget.sensitive = sensitive
-    if (canFocus !== undefined) widget.can_focus = canFocus
-    if (canTarget !== undefined) widget.can_target = canTarget
-    if (focusOnClick !== undefined) widget.focus_on_click = focusOnClick
-    if (focusable !== undefined) widget.focusable = focusable
-    if (hasTooltip !== undefined) widget.has_tooltip = hasTooltip
-    if (tooltipText !== undefined) widget.tooltip_text = tooltipText
-    if (tooltipMarkup !== undefined) widget.tooltip_markup = tooltipMarkup
-    if (halign !== undefined) widget.halign = halign
-    if (valign !== undefined) widget.valign = valign
-    if (hexpand !== undefined) widget.hexpand = hexpand
-    if (vexpand !== undefined) widget.vexpand = vexpand
-    if (hexpandSet !== undefined) widget.hexpand_set = hexpandSet
-    if (vexpandSet !== undefined) widget.vexpand_set = vexpandSet
-    if (marginStart !== undefined) widget.margin_start = marginStart
-    if (marginEnd !== undefined) widget.margin_end = marginEnd
-    if (marginTop !== undefined) widget.margin_top = marginTop
-    if (marginBottom !== undefined) widget.margin_bottom = marginBottom
-    if (widthRequest !== undefined) widget.width_request = widthRequest
-    if (heightRequest !== undefined) widget.height_request = heightRequest
-    if (name !== undefined) widget.name = name
-  }
-
   // If no children, return just the DrawingArea
   if (!children) {
     if (className) drawingArea.add_css_class(className)
     if (css) (drawingArea as any).css = css
-    applySafeProps(drawingArea)
+    applySafeProps(drawingArea, safeProps)
     return drawingArea as any
   }
 
@@ -161,7 +168,7 @@ export default function Tile({
   // Apply props
   if (className) overlay.add_css_class(className)
   if (css) (overlay as any).css = css
-  applySafeProps(overlay)
+  applySafeProps(overlay, safeProps)
 
   return overlay as any
 }

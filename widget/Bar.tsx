@@ -6,7 +6,7 @@ import Tile from "./Tile"
 import TileGroup from "./TileGroup"
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
-  print("Rendering Bar component")
+  // print("Rendering Bar component")
   const time = createPoll("", 1000, "date")
   const { TOP, LEFT, RIGHT } = Astal.WindowAnchor
 
