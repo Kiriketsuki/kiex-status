@@ -274,11 +274,7 @@ We follow a strict hierarchical branching model based on the Issue-Driven Hierar
 
 ## Versioning
 
-<<<<<<<< HEAD:docs/CONTRIBUTING.md
-We use a 4-digit versioning system: `Major.Task.Feature.Bug[a-z]` (e.g., `0.1.0.0` or `0.1.0.0a`).
-========
-We use a 4-digit versioning system with optional hotfix suffix: `Release.Major.Minor.Patch[Hotfix]` (e.g., `0.1.0.0` or `0.1.0.0a`).
->>>>>>>> c265aab (Adds #6: [FEATURE]: Tile Component (#10)):docs/contributing.md
+We use a 4-digit versioning system with optional hotfix suffix: `Major.Task.Feature.Bug[a-z]` (e.g., `0.1.0.0` or `0.1.0.0a`).
 
 - **Major** (1st digit): Major releases (bumped on release branch)
 - **Task** (2nd digit): Major units of work (bumped when Task PR merges to main)
