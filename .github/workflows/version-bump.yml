@@ -92,8 +92,8 @@ jobs:
         if: steps.bump_type.outputs.BUMP_TYPE != 'none'
         run: |
           CURRENT_VERSION=$(cat VERSION)
-          # Regex to parse Major.Task.Feature.Bug[Hotfix]
-          # Examples: 0.1.0.0, 0.1.0.0a
+          # Regex to parse Major.Task.Feature.Bug[Hotfix letter]
+          # Examples: 0.1.0.0 (no hotfix), 0.1.0.0a (hotfix 'a'), 0.1.0.0b (hotfix 'b')
           if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-z]*)$ ]]; then
             MAJOR="${BASH_REMATCH[1]}"
             TASK="${BASH_REMATCH[2]}"
