@@ -15,6 +15,11 @@ and this project adheres to a 4-digit semantic versioning scheme: `Major.Task.Fe
 
 ## Version History
 
+## [0.2.0.0b] - 2025-12-11
+
+### Fixed
+-  (direct push to main)
+
 ## [0.2.0.0a] - 2025-12-11
 
 ### Fixed
