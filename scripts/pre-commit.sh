@@ -53,7 +53,8 @@ fi
 # Check for hotfix letter overflow warning
 if [[ "$VERSION_FILE" =~ ([a-z])$ ]]; then
     HOTFIX_LETTER="${BASH_REMATCH[1]}"
-    if [[ "$HOTFIX_LETTER" > "y" ]]; then
+    HOTFIX_ASCII=$(printf '%d' "'$HOTFIX_LETTER")
+    if (( HOTFIX_ASCII > 121 )); then
         echo -e "${YELLOW}WARNING: Hotfix letter is '$HOTFIX_LETTER'.${NC}"
         echo -e "${YELLOW}Consider bumping to next bug fix version instead of continuing past 'z'.${NC}"
     fi

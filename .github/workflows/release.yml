@@ -48,6 +48,10 @@ jobs:
 
           # Bump MAJOR component (1st digit) for production releases
           MAJOR=$((MAJOR + 1))
+          TASK=0
+          FEATURE=0
+          BUG=0
+          HOTFIX=""
 
           NEW_VERSION="$MAJOR.$TASK.$FEATURE.$BUG$HOTFIX"
           echo "Bumping to: $NEW_VERSION"

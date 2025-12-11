@@ -137,20 +137,16 @@ fi
 
 # Update .github/settings.yml
 echo -e "${GREEN}✓${NC} Updating .github/settings.yml..."
-sed -i.bak \
-    -e "s|name: your-project-name|name: $PROJECT_NAME|" \
+sed -e "s|name: your-project-name|name: $PROJECT_NAME|" \
     -e "s|description: Your project description|description: $PROJECT_DESCRIPTION|" \
     -e "s|homepage: https://github.com/yourusername/your-project-name|homepage: $HOMEPAGE_URL|" \
-    .github/settings.yml
-rm .github/settings.yml.bak 2>/dev/null || true
+    .github/settings.yml > .github/settings.yml.tmp && mv .github/settings.yml.tmp .github/settings.yml
 
 # Update .github/copilot-instructions.md
 echo -e "${GREEN}✓${NC} Updating .github/copilot-instructions.md..."
-sed -i.bak \
-    -e "s|template-repo|$PROJECT_NAME|g" \
+sed -e "s|template-repo|$PROJECT_NAME|g" \
     -e "s|Template-Repo|$PROJECT_NAME|g" \
-    .github/copilot-instructions.md
-rm .github/copilot-instructions.md.bak 2>/dev/null || true
+    .github/copilot-instructions.md > .github/copilot-instructions.md.tmp && mv .github/copilot-instructions.md.tmp .github/copilot-instructions.md
 
 # Create project-specific README
 echo -e "${GREEN}✓${NC} Creating PROJECT_README.md template..."
