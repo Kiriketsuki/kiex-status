@@ -39,12 +39,6 @@ export function getPaletteColors(): string[] {
   return Object.keys(getPalette())
 }
 
-export function getRandomPaletteColor(): string | undefined {
-  const colors = getPaletteColors()
-  if (colors.length === 0) return undefined
-  return colors[Math.floor(Math.random() * colors.length)]
-}
-
 export function getRandomPaletteColorValue(): string | undefined {
   const palette = getPalette()
   const colors = Object.values(palette)
