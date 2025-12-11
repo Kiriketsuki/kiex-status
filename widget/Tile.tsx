@@ -1,4 +1,6 @@
 import { Gtk, Gdk } from "ags/gtk4"
+
+import { getRandomPaletteEntry } from "../lib/palette"
 import {
   drawPolyTile,
   drawSubtileBoundaries,
@@ -81,7 +83,7 @@ export default function Tile({
   units,
   offset = 0,
   subtiles = {},
-  baseColor = "rgba(50, 50, 50, 1)",
+  baseColor,
   showGrid = false,
   children,
   className,
@@ -91,22 +93,29 @@ export default function Tile({
   const width = getPolyTileWidth(units)
   const startUpright = offset % 2 === 0
 
+  const paletteEntry = getRandomPaletteEntry()
+  const autoCss = paletteEntry ? `color: var(${paletteEntry.name});` : ""
+  const finalCss = `${autoCss} ${css || ""}`.trim()
+
+  const effectiveBaseColor = baseColor || paletteEntry?.value
+
   // Create DrawingArea
   const drawingArea = new Gtk.DrawingArea()
   drawingArea.set_content_width(width)
   drawingArea.set_content_height(TILE_HEIGHT)
 
-  drawingArea.set_draw_func((_, cr, w, h) => {
+  drawingArea.set_draw_func((_area: any, cr: any, w: number, h: number) => {
     // Base Shape
-    const bg = new Gdk.RGBA()
-    if (bg.parse(baseColor)) {
-      cr.setSourceRGBA(bg.red, bg.green, bg.blue, bg.alpha)
-    } else {
-      console.error(`[Tile] Failed to parse baseColor: ${baseColor}`)
-      cr.setSourceRGBA(0.2, 0.2, 0.2, 1)
+    if (effectiveBaseColor) {
+      const bg = new Gdk.RGBA()
+      if (bg.parse(effectiveBaseColor)) {
+        cr.setSourceRGBA(bg.red, bg.green, bg.blue, bg.alpha)
+        drawPolyTile(cr, w, h, units, startUpright)
+        cr.fill()
+      } else {
+        console.error(`[Tile] Failed to parse baseColor: ${effectiveBaseColor}`)
+      }
     }
-    drawPolyTile(cr, w, h, units, startUpright)
-    cr.fill()
 
     // Subtiles
     for (const [indexStr, colorStr] of Object.entries(subtiles)) {
@@ -124,7 +133,7 @@ export default function Tile({
         )
         // Fallback: use baseColor
         const fallback = new Gdk.RGBA()
-        if (fallback.parse(baseColor)) {
+        if (effectiveBaseColor && fallback.parse(effectiveBaseColor)) {
           cr.setSourceRGBA(
             fallback.red,
             fallback.green,
@@ -150,8 +159,9 @@ export default function Tile({
 
   // If no children, return just the DrawingArea
   if (!children) {
+    drawingArea.add_css_class("geo-tile")
     if (className) drawingArea.add_css_class(className)
-    if (css) (drawingArea as any).css = css
+    if (finalCss) (drawingArea as any).css = finalCss
     applySafeProps(drawingArea, safeProps)
     return drawingArea as any
   }
@@ -168,8 +178,9 @@ export default function Tile({
   overlay.add_overlay(overlayBox)
 
   // Apply props
+  overlay.add_css_class("geo-tile")
   if (className) overlay.add_css_class(className)
-  if (css) (overlay as any).css = css
+  if (finalCss) (overlay as any).css = finalCss
   applySafeProps(overlay, safeProps)
 
   return overlay as any

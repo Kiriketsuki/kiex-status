@@ -4,6 +4,7 @@ import { execAsync } from "ags/process"
 import { createPoll } from "ags/time"
 import Tile from "./Tile"
 import TileGroup from "./TileGroup"
+import { getRandomPaletteColorValue } from "../lib/palette"
 
 export default function Bar(gdkmonitor: Gdk.Monitor) {
   // print("Rendering Bar component")
@@ -31,12 +32,7 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
         </button>
         <box $type="center" hexpand halign={Gtk.Align.CENTER} spacing={10}>
           {/* Example 0: Single 1-unit tile */}
-          <Tile
-            units={1}
-            offset={0}
-            baseColor="rgba(255, 100, 150, 1)"
-            showGrid={false}
-          >
+          <Tile units={1} offset={0} showGrid={false}>
             <label
               label="Hi"
               css="color: white; font-weight: bold; font-size: 12px;"
@@ -47,8 +43,9 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           <Tile
             units={2}
             offset={0}
-            baseColor="rgba(100, 150, 255, 1)"
-            subtiles={{ 1: "rgba(255, 0, 0, 1)" }}
+            subtiles={{
+              1: getRandomPaletteColorValue() || "rgba(255, 0, 0, 1)",
+            }}
             showGrid={true}
           >
             <label label="CPU" css="color: white; font-weight: bold;" />
@@ -60,18 +57,18 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
               <Tile
                 units={2}
                 offset={1}
-                baseColor="rgba(70, 130, 180, 1)"
                 subtiles={{
-                  0: "rgba(0, 255, 100, 1)",
-                  5: "rgba(255, 165, 0, 1)",
+                  0: getRandomPaletteColorValue() || "rgba(0, 255, 100, 1)",
+                  5: getRandomPaletteColorValue() || "rgba(255, 165, 0, 1)",
                 }}
                 showGrid={false}
               />,
               <Tile
                 units={2}
                 offset={0}
-                baseColor="rgba(100, 150, 200, 1)"
-                subtiles={{ 2: "rgba(255, 200, 0, 1)" }}
+                subtiles={{
+                  2: getRandomPaletteColorValue() || "rgba(255, 200, 0, 1)",
+                }}
                 showGrid={false}
               />,
             ]}
@@ -98,11 +95,10 @@ export default function Bar(gdkmonitor: Gdk.Monitor) {
           <Tile
             units={3}
             offset={0}
-            baseColor="rgba(50, 50, 50, 1)"
             subtiles={{
-              0: "rgba(255, 0, 0, 1)",
-              3: "rgba(0, 255, 0, 1)",
-              6: "rgba(0, 0, 255, 1)",
+              0: getRandomPaletteColorValue() || "rgba(255, 0, 0, 1)",
+              3: getRandomPaletteColorValue() || "rgba(0, 255, 0, 1)",
+              6: getRandomPaletteColorValue() || "rgba(0, 0, 255, 1)",
             }}
             showGrid={true}
           >
