@@ -112,7 +112,7 @@ kiex-status/
 │   └── Tile.tsx       # Reusable Tile component
 ├── modules/           # Future modules
 └── docs/
-    └── TILE_COMPONENT.md  # Tile component documentation
+    └── tile_component.md  # Tile component documentation
 ```
 
 ## Usage

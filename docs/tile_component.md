@@ -59,34 +59,32 @@ import Tile from "./widget/Tile"
 
 ## Layout Architecture
 
-### Limitation: No Overlay Support
+### Overlay-Based Composition
 
-**Important:** The Tile component does **not** use GTK's `Overlay` widget due to a known issue in AGS where `DrawingArea` widgets fail to realize when placed inside an `Overlay` hierarchy.
-
-### Workaround: Box-Based Composition
-
-Instead, the component uses a **Box container** with children as **siblings** to the DrawingArea:
+The Tile component uses GTK's `Overlay` widget to layer children on top of the Cairo-drawn tile:
 
 ```
-<box>
-  <drawingarea />  ← Cairo-drawn tile
-  {children}       ← Your labels, buttons, etc. (siblings, not overlaid)
-</box>
+<overlay>
+  <drawingarea />  ← Base layer: Cairo-drawn tile
+  <box>            ← Overlay layer: positioned on top
+    {children}     ← Your labels, buttons, etc.
+  </box>
+</overlay>
 ```
+
+**Implementation Details:**
+
+- When `children` are provided, the component creates a `Gtk.Overlay()` container
+- The `DrawingArea` is set as the base child via `overlay.set_child()`
+- Children are wrapped in a centered `Box` and added via `overlay.add_overlay()`
+- If no children are present, only the `DrawingArea` is returned
 
 This means:
 
-- ✅ Interactive widgets (buttons, labels) render **next to** the tile
-- ❌ Cannot position widgets **on top of** the drawn tile geometry
-- ✅ Use CSS `position: absolute` or flexbox for custom positioning if needed
-
-### Comparison with HyprPanel Pattern
-
-HyprPanel (a similar AGS project) uses the same approach:
-
-- All interactive widgets are wrapped in `<box>` or `<eventbox>`
-- `DrawingArea` and interactive elements are siblings, not layered
-- Visual layering achieved via CSS when needed
+- ✅ Interactive widgets render **on top of** the drawn tile geometry
+- ✅ Children are centered by default (`halign` and `valign` set to `CENTER`)
+- ✅ Full layering support for complex UI compositions
+- ✅ DrawingArea remains fully visible beneath the overlay content
 
 ## Subtile Indexing
 
@@ -102,11 +100,10 @@ Unit 2:  [6] [7] [8]
 For a 2-unit tile (`units={2}`):
 
 - Valid indices: 0-5
-- Index 0: First upright triangle (left edge)
-- Index 5: Last inverted triangle (right edge)
+- Index 0: Leftmost triangle (regardless of orientation)
+- Index 5: Rightmost triangle (regardless of orientation)
 
-## Color Formats
-
+**Note:** Subtile indices are always assigned left-to-right, independent of the `offset` value. The `offset` only determines which triangles are upright or inverted; it does **not** affect the numbering. For example, with `offset=1`, index 0 may be an inverted triangle, while with `offset=0`, index 0 is upright. Always refer to indices by position, not orientation.
 Both hex strings and RGBA strings are supported:
 
 ```tsx
@@ -158,16 +155,16 @@ const cpuLoad = 0.75 // 75% load
 ### Clock Module
 
 ```tsx
-import { Variable, GLib } from "astal"
+import { createPoll } from "ags/time"
 
-const time = Variable("").poll(1000, () =>
-  GLib.DateTime.new_now_local().format("%H:%M") || ""
-)
+const time = createPoll("", 1000, "date")
 
 <Tile units={2} baseColor="rgba(70, 130, 180, 1)">
-  <label label={time()} widthRequest={200} halign={Gtk.Align.CENTER} />
+  <label label={time.value} widthRequest={200} halign={Gtk.Align.CENTER} />
 </Tile>
 ```
+
+**Note:** This example uses `createPoll` from `ags/time`, which is the AGS-specific polling API. The `time.value` property accesses the current polled value.
 
 ## Implementation Notes
 
@@ -200,7 +197,8 @@ If child widgets don't render:
 
 1. Check console for AGS errors
 2. Ensure children are valid GTK widgets
-3. Verify the Box container has proper sizing (`hexpand`, `vexpand` as needed)
+3. Verify the Overlay container is properly initialized (check that `overlay.add_overlay()` was called)
+4. Check that the internal Box wrapper has proper alignment (`halign` and `valign` default to `CENTER`)
 
 ### DrawingArea Not Visible
 
@@ -208,7 +206,7 @@ If the tile doesn't appear:
 
 1. Verify `widthRequest` and `heightRequest` are set correctly
 2. Check that `halign` and `valign` are `CENTER` (not `FILL`)
-3. Look for console logs: `[Tile] DrawingArea realized` should appear
+3. Ensure the DrawingArea widget is being added to the parent container
 
 ### Constant Redraws
 
