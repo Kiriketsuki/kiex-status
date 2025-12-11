@@ -1,5 +1,5 @@
 import { Gtk, Gdk } from "ags/gtk4"
-import Cairo from "cairo"
+
 import { getRandomPaletteEntry } from "../lib/palette"
 import {
   drawPolyTile,

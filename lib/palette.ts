@@ -5,6 +5,8 @@ const libDir = GLib.path_get_dirname(filename!)
 const rootDir = GLib.path_get_dirname(libDir)
 const PALETTE_PATH = `${rootDir}/palette.css`
 
+let cachedPalette: Record<string, string> | null = null
+
 function readFile(path: string): string {
   const [success, content] = GLib.file_get_contents(path)
   if (!success) {
@@ -15,6 +17,8 @@ function readFile(path: string): string {
 }
 
 export function getPalette(): Record<string, string> {
+  if (cachedPalette) return cachedPalette
+
   try {
     const content = readFile(PALETTE_PATH)
     const palette: Record<string, string> = {}
@@ -23,6 +27,7 @@ export function getPalette(): Record<string, string> {
     while ((match = regex.exec(content)) !== null) {
       palette[match[1]] = match[2].trim()
     }
+    cachedPalette = palette
     return palette
   } catch (e) {
     console.error(`[Palette] Failed to read palette from ${PALETTE_PATH}`, e)
