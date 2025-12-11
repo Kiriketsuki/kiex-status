@@ -1,0 +1,108 @@
+name: Validate Required Labels
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - .github/workflows/label-sync.yml
+    workflow_dispatch:
+
+permissions:
+    issues: write
+
+jobs:
+    sync_labels:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Check and Create Required Labels
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const requiredLabels = [
+                        { name: 'task', color: '0052CC', description: 'Major unit of work' },
+                        { name: 'feature', color: '1D76DB', description: 'Sub-component of a task' },
+                        { name: 'bug', color: 'D73A4A', description: 'Fix for a feature or task' },
+                        { name: 'hotfix', color: 'B60205', description: 'Urgent production fix' },
+                        { name: 'addition', color: '0E8A16', description: 'Addition of a new feature' },
+                        { name: 'fix', color: 'D93F0B', description: 'Bug fix or correction' },
+                        { name: 'implementation', color: '5319E7', description: 'Implementation of a new task' }
+                      ];
+
+                      console.log('Fetching existing labels...');
+                      const { data: existingLabels } = await github.rest.issues.listLabelsForRepo({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        per_page: 100
+                      });
+
+                      const existingLabelNames = existingLabels.map(l => l.name.toLowerCase());
+                      console.log('Existing labels:', existingLabelNames);
+
+                      let created = 0;
+                      let updated = 0;
+                      let unchanged = 0;
+
+                      for (const label of requiredLabels) {
+                        const exists = existingLabels.find(l => l.name.toLowerCase() === label.name.toLowerCase());
+                        
+                        if (!exists) {
+                          console.log(`Creating label: ${label.name}`);
+                          try {
+                            await github.rest.issues.createLabel({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              name: label.name,
+                              color: label.color,
+                              description: label.description
+                            });
+                            created++;
+                            console.log(`✅ Created label: ${label.name}`);
+                          } catch (error) {
+                            console.error(`Failed to create label ${label.name}:`, error.message);
+                          }
+                        } else {
+                          // Check if label needs updating
+                          const needsUpdate = exists.color !== label.color || exists.description !== label.description;
+                          
+                          if (needsUpdate) {
+                            console.log(`Updating label: ${label.name}`);
+                            try {
+                              await github.rest.issues.updateLabel({
+                                owner: context.repo.owner,
+                                repo: context.repo.repo,
+                                name: exists.name,
+                                color: label.color,
+                                description: label.description
+                              });
+                              updated++;
+                              console.log(`✅ Updated label: ${label.name}`);
+                            } catch (error) {
+                              console.error(`Failed to update label ${label.name}:`, error.message);
+                            }
+                          } else {
+                            unchanged++;
+                            console.log(`✓ Label already exists: ${label.name}`);
+                          }
+                        }
+                      }
+
+                      console.log('\n=== Summary ===');
+                      console.log(`Created: ${created}`);
+                      console.log(`Updated: ${updated}`);
+                      console.log(`Unchanged: ${unchanged}`);
+                      console.log('===============');
+
+                      if (created > 0 || updated > 0) {
+                        core.summary
+                          .addHeading('Label Sync Results')
+                          .addTable([
+                            [{data: 'Status', header: true}, {data: 'Count', header: true}],
+                            ['Created', created.toString()],
+                            ['Updated', updated.toString()],
+                            ['Unchanged', unchanged.toString()]
+                          ])
+                          .write();
+                      }

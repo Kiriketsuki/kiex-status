@@ -1,0 +1,87 @@
+name: Hotfix
+description: Create a hotfix for an urgent production issue
+title: "[HOTFIX]: "
+labels: ["hotfix"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Hotfix Request
+
+        Hotfixes are for **urgent production issues** that need immediate attention.
+
+        ### Important Guidelines:
+
+        - **Always create a Bug issue first** (even for emergencies) to maintain traceability
+        - Reference the Bug issue number below
+        - A hotfix branch will be created from the parent Bug branch
+        - For production emergencies without an existing Bug branch, the workflow will use `main` as a fallback
+
+        ### Workflow:
+
+        1. Create a Bug issue (if one doesn't exist)
+        2. Create this Hotfix issue referencing the Bug issue
+        3. Work on the auto-generated `hotfix/` branch
+        4. Merge the hotfix PR to fix the bug quickly
+        5. Version bumps with a letter suffix (e.g., `0.1.2.1a`)
+
+  - type: input
+    id: parent_issue
+    attributes:
+      label: Parent Issue Number
+      description: |
+        **Required**: The issue number of the Bug this hotfix addresses (e.g., 42).
+        Enter numbers only, without the # symbol.
+
+        **Note**: Even for emergency hotfixes, create a Bug issue first to document the problem.
+        This maintains full traceability and helps prevent similar issues in the future.
+
+        **Emergency fallback**: If you absolutely cannot create a Bug issue first (production is down),
+        the workflow will use `main` as the parent branch, but you should create a Bug issue
+        immediately after for documentation purposes.
+      placeholder: "42"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe the hotfix that needs to be made.
+
+        Include:
+        - What is broken or vulnerable
+        - Impact of the issue (users affected, severity)
+        - Proposed fix approach
+        - Any temporary workarounds in place
+      placeholder: |
+        ## Issue
+        Production authentication endpoint returning 500 errors for 20% of users
+
+        ## Impact
+        - Approximately 500 users cannot log in
+        - Started 30 minutes ago
+
+        ## Root Cause
+        Null pointer exception in token validation
+
+        ## Proposed Fix
+        Add null check before token validation
+
+        ## Temporary Workaround
+        Users can use "forgot password" flow as alternative
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How urgent is this hotfix?
+      options:
+        - Critical (Production down, immediate fix required)
+        - High (Major functionality broken, fix needed within hours)
+        - Medium (Important issue, fix needed within a day)
+    validations:
+      required: true

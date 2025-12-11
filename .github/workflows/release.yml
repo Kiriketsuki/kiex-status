@@ -36,20 +36,24 @@ jobs:
           echo "Current Version: $CURRENT_VERSION"
 
           if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-z]*)$ ]]; then
-            RELEASE="${BASH_REMATCH[1]}"
-            MAJOR="${BASH_REMATCH[2]}"
-            MINOR="${BASH_REMATCH[3]}"
-            PATCH="${BASH_REMATCH[4]}"
+            MAJOR="${BASH_REMATCH[1]}"
+            TASK="${BASH_REMATCH[2]}"
+            FEATURE="${BASH_REMATCH[3]}"
+            BUG="${BASH_REMATCH[4]}"
             HOTFIX="${BASH_REMATCH[5]}"
           else
             echo "Error: Invalid version format: $CURRENT_VERSION"
             exit 1
           fi
 
-          # Bump RELEASE component
-          RELEASE=$((RELEASE + 1))
+          # Bump MAJOR component (1st digit) for production releases
+          MAJOR=$((MAJOR + 1))
+          TASK=0
+          FEATURE=0
+          BUG=0
+          HOTFIX=""
 
-          NEW_VERSION="$RELEASE.$MAJOR.$MINOR.$PATCH$HOTFIX"
+          NEW_VERSION="$MAJOR.$TASK.$FEATURE.$BUG$HOTFIX"
           echo "Bumping to: $NEW_VERSION"
           echo "$NEW_VERSION" > VERSION
 

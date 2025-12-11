@@ -1,0 +1,185 @@
+name: Direct Push Version Bump
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+jobs:
+    bump_version:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
+
+            - name: Get Commit Message
+              id: commit_msg
+              run: |
+                  commit_message=$(git log -1 --pretty=%s)
+                  echo "Commit message: $commit_message"
+                  echo "message=$commit_message" >> $GITHUB_OUTPUT
+
+            - name: Determine Bump Type
+              id: bump_type
+              env:
+                  COMMIT_MSG: ${{ steps.commit_msg.outputs.message }}
+              run: |
+                  # Check if commit message is from version bump itself (skip)
+                  if [[ "$COMMIT_MSG" == "Bump version to"* ]]; then
+                    echo "Skipping version bump for version bump commit"
+                    echo "index=-1" >> $GITHUB_OUTPUT
+                    echo "bump_type=none" >> $GITHUB_OUTPUT
+                    exit 0
+                  fi
+
+                  # Check commit message prefix - ONLY bump for these specific prefixes
+                  if [[ "$COMMIT_MSG" == "task:"* ]]; then
+                    echo "Bumping 2nd digit (Task via direct push)"
+                    echo "index=1" >> $GITHUB_OUTPUT
+                    echo "bump_type=task" >> $GITHUB_OUTPUT
+                  elif [[ "$COMMIT_MSG" == "feat:"* ]]; then
+                    echo "Bumping 3rd digit (Feature via direct push)"
+                    echo "index=2" >> $GITHUB_OUTPUT
+                    echo "bump_type=feature" >> $GITHUB_OUTPUT
+                  elif [[ "$COMMIT_MSG" == "bug:"* ]]; then
+                    echo "Bumping 4th digit (Bug via direct push)"
+                    echo "index=3" >> $GITHUB_OUTPUT
+                    echo "bump_type=bug" >> $GITHUB_OUTPUT
+                  elif [[ "$COMMIT_MSG" == "hotfix:"* ]]; then
+                    echo "Bumping hotfix letter (Hotfix via direct push)"
+                    echo "index=4" >> $GITHUB_OUTPUT
+                    echo "bump_type=hotfix" >> $GITHUB_OUTPUT
+                  else
+                    echo "No version bump prefix found in commit message (task:, feat:, bug:, hotfix:)"
+                    echo "index=-1" >> $GITHUB_OUTPUT
+                    echo "bump_type=none" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Validate VERSION File
+              if: steps.bump_type.outputs.index != '-1'
+              run: |
+                  if [ ! -f VERSION ]; then
+                    echo "::error::VERSION file not found!"
+                    exit 1
+                  fi
+
+                  current_version=$(cat VERSION)
+
+                  if [[ ! "$current_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+([a-z])?$ ]]; then
+                    echo "::error::Invalid version format in VERSION file: $current_version"
+                    echo "::error::Expected format: Major.Task.Feature.Bug[a-z] (e.g., 0.1.2.1 or 0.1.2.1a)"
+                    exit 1
+                  fi
+
+                  echo "Version file validated: $current_version"
+
+            - name: Update Version
+              if: steps.bump_type.outputs.index != '-1'
+              env:
+                  BUMP_INDEX: ${{ steps.bump_type.outputs.index }}
+                  BUMP_TYPE: ${{ steps.bump_type.outputs.bump_type }}
+              run: |
+                  current_version=$(cat VERSION)
+                  echo "Current version: $current_version"
+
+                  # Extract numeric version and hotfix letter
+                  if [[ "$current_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)([a-z])?$ ]]; then
+                    numeric_version="${BASH_REMATCH[1]}"
+                    hotfix_letter="${BASH_REMATCH[2]}"
+                  else
+                    echo "Invalid version format: $current_version"
+                    exit 1
+                  fi
+
+                  IFS='.' read -r -a parts <<< "$numeric_version"
+
+                  if [ "$BUMP_TYPE" == "hotfix" ]; then
+                    # Bump hotfix letter: no letter -> 'a', 'a' -> 'b', etc.
+                    if [ -z "$hotfix_letter" ]; then
+                      new_hotfix="a"
+                    else
+                      # Get ASCII value, increment, convert back to char
+                      ascii_val=$(printf '%d' "'$hotfix_letter")
+                      new_ascii=$((ascii_val + 1))
+                      new_hotfix=$(printf "\\$(printf '%03o' "$new_ascii")")
+                    fi
+                    new_version="${parts[0]}.${parts[1]}.${parts[2]}.${parts[3]}${new_hotfix}"
+                  else
+                    # Standard version bump - increment the target index
+                    parts[$BUMP_INDEX]=$((parts[$BUMP_INDEX] + 1))
+                    
+                    # Reset lower indices
+                    for ((i=BUMP_INDEX+1; i<4; i++)); do
+                      parts[$i]=0
+                    done
+                    
+                    # No hotfix letter for standard bumps
+                    new_version="${parts[0]}.${parts[1]}.${parts[2]}.${parts[3]}"
+                  fi
+
+                  echo "New version: $new_version"
+
+                  echo "$new_version" > VERSION
+
+                  # Update package.json
+                  jq --arg v "$new_version" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
+
+                  # Update changelog.md
+                  if [ -f docs/changelog.md ]; then
+                    CURRENT_DATE=$(date +%Y-%m-%d)
+                    COMMIT_MSG="$COMMIT_MSG"
+                    
+                    # Determine change type based on bump type
+                    CHANGE_TYPE="Changed"
+                    if [ "$BUMP_TYPE" == "task" ]; then
+                      CHANGE_TYPE="Added"
+                    elif [ "$BUMP_TYPE" == "feature" ]; then
+                      CHANGE_TYPE="Added"
+                    elif [ "$BUMP_TYPE" == "bug" ]; then
+                      CHANGE_TYPE="Fixed"
+                    elif [ "$BUMP_TYPE" == "hotfix" ]; then
+                      CHANGE_TYPE="Fixed"
+                    fi
+                    
+                    # Create temporary file with new entry
+                    cat > /tmp/changelog_entry << EOF
+
+                  ## [$new_version] - $CURRENT_DATE
+
+                  ### $CHANGE_TYPE
+                  - $COMMIT_MSG (direct push to main)
+                  EOF
+                    
+                    # Insert after "## Version History" line using awk
+                    if awk '/^## Version History$/ { print; system("cat /tmp/changelog_entry"); next }1' docs/changelog.md > docs/changelog.md.tmp; then
+                      if [ -s docs/changelog.md.tmp ]; then
+                        mv docs/changelog.md.tmp docs/changelog.md
+                        echo "Updated changelog.md with version $new_version"
+                      else
+                        echo "⚠️  Warning: changelog update produced empty file, keeping original"
+                        rm docs/changelog.md.tmp
+                      fi
+                    else
+                      echo "⚠️  Warning: Failed to update changelog.md, keeping original"
+                      rm -f docs/changelog.md.tmp
+                    fi
+                    rm -f /tmp/changelog_entry
+                  else
+                    echo "⚠️  changelog.md not found, skipping changelog update"
+                  fi
+
+                  # Commit and Push
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  git add VERSION package.json
+                  if [ -f docs/changelog.md ]; then
+                    git add docs/changelog.md
+                  fi
+                  git commit -m "Bump version to $new_version"
+                  git push origin main

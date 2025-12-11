@@ -1,0 +1,118 @@
+name: PR Label Auto-Assignment
+on:
+    pull_request:
+        types: [opened, reopened, synchronize]
+
+permissions:
+    pull-requests: write
+    contents: read
+
+jobs:
+    auto_assign_label:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Auto-assign Label Based on Branch
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const { data: pr } = await github.rest.pulls.get({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: context.payload.pull_request.number
+                      });
+
+                      const branchName = pr.head.ref;
+                      const baseRef = pr.base.ref;
+
+                      console.log(`Branch: ${branchName}`);
+                      console.log(`Base: ${baseRef}`);
+
+                      // Determine expected label based on branch name
+                      let expectedLabel = null;
+                      let expectedBase = null;
+
+                      if (branchName.startsWith('task/')) {
+                        expectedLabel = 'implementation';
+                        expectedBase = 'main';
+                      } else if (branchName.startsWith('feature/')) {
+                        expectedLabel = 'addition';
+                        expectedBase = 'task/';
+                      } else if (branchName.startsWith('bug/')) {
+                        expectedLabel = 'fix';
+                        expectedBase = ['feature/', 'task/'];
+                      } else if (branchName.startsWith('hotfix/')) {
+                        expectedLabel = 'fix';
+                        expectedBase = ['bug/', 'main'];
+                      }
+
+                      if (!expectedLabel) {
+                        console.log('Branch does not match expected naming convention. Skipping.');
+                        return;
+                      }
+
+                      // Validate base branch
+                      let baseValid = false;
+                      if (Array.isArray(expectedBase)) {
+                        baseValid = expectedBase.some(prefix => 
+                          prefix === 'main' ? baseRef === 'main' : baseRef.startsWith(prefix)
+                        );
+                      } else {
+                        baseValid = expectedBase === 'main' ? baseRef === 'main' : baseRef.startsWith(expectedBase);
+                      }
+
+                      if (!baseValid) {
+                        const expectedBases = Array.isArray(expectedBase) ? expectedBase.join(' or ') : expectedBase;
+                        const message = `⚠️ **Warning**: This PR's base branch (\`${baseRef}\`) does not match the expected pattern for a \`${branchName.split('/')[0]}\` branch.\n\nExpected base: ${expectedBases}\n\nPlease verify this is correct according to the [branching hierarchy](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/docs/architecture.md#branching-hierarchy).`;
+                        
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.payload.pull_request.number,
+                          body: message
+                        });
+                      }
+
+                      // Get current labels
+                      const currentLabels = pr.labels.map(l => l.name);
+                      console.log(`Current labels: ${currentLabels.join(', ')}`);
+
+                      // Check if PR already has the correct label
+                      if (currentLabels.includes(expectedLabel)) {
+                        console.log(`PR already has correct label: ${expectedLabel}`);
+                        return;
+                      }
+
+                      // Remove incorrect PR type labels
+                      const prTypeLabels = ['implementation', 'addition', 'fix'];
+                      const labelsToRemove = currentLabels.filter(l => 
+                        prTypeLabels.includes(l) && l !== expectedLabel
+                      );
+
+                      for (const label of labelsToRemove) {
+                        console.log(`Removing incorrect label: ${label}`);
+                        await github.rest.issues.removeLabel({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.payload.pull_request.number,
+                          name: label
+                        });
+                      }
+
+                      // Add correct label
+                      console.log(`Adding label: ${expectedLabel}`);
+                      await github.rest.issues.addLabels({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: context.payload.pull_request.number,
+                        labels: [expectedLabel]
+                      });
+
+                      // Comment on PR if label was added
+                      if (labelsToRemove.length > 0 || !currentLabels.length) {
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.payload.pull_request.number,
+                          body: `✅ Automatically applied \`${expectedLabel}\` label based on branch name pattern.`
+                        });
+                      }
