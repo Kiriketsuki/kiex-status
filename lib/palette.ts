@@ -1,7 +1,9 @@
 import GLib from "gi://GLib"
 
-const currentDir = GLib.get_current_dir()
-const PALETTE_PATH = `${currentDir}/palette.css`
+const [filename] = GLib.filename_from_uri(import.meta.url)
+const libDir = GLib.path_get_dirname(filename!)
+const rootDir = GLib.path_get_dirname(libDir)
+const PALETTE_PATH = `${rootDir}/palette.css`
 
 function readFile(path: string): string {
   const [success, content] = GLib.file_get_contents(path)
