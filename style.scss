@@ -2,6 +2,18 @@
 $fg-color: #{"@theme_fg_color"};
 $bg-color: #{"@theme_bg_color"};
 
+@use "palette";
+
+.geo-tile {
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+
+  label {
+    margin: 0 4px;
+  }
+}
+
 window.Bar {
   background: transparent;
   color: $fg-color;
