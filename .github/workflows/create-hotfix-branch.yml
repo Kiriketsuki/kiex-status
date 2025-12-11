@@ -1,337 +1,337 @@
 name: Create Hotfix Branch
 on:
-    issues:
-        types: [opened]
-    workflow_dispatch:
-        inputs:
-            issue_number:
-                description: "Issue number to create branch for"
-                required: true
-                type: number
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to create branch for"
+        required: true
+        type: number
 
 permissions:
-    contents: write
-    pull-requests: write
-    issues: write
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
-    create_branch:
-        if: contains(github.event.issue.labels.*.name, 'hotfix') || github.event_name == 'workflow_dispatch'
-        runs-on: ubuntu-latest
-        outputs:
-            parent_id: ${{ steps.extract_parent.outputs.parent_id }}
-            parent_branch: ${{ steps.find_parent_branch.outputs.parent_branch }}
-            issue_number: ${{ steps.set_outputs.outputs.issue_number }}
-            issue_title: ${{ steps.set_outputs.outputs.issue_title }}
-            issue_body: ${{ steps.set_outputs.outputs.issue_body }}
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+  create_branch:
+    if: contains(github.event.issue.labels.*.name, 'hotfix') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      parent_id: ${{ steps.extract_parent.outputs.parent_id }}
+      parent_branch: ${{ steps.find_parent_branch.outputs.parent_branch }}
+      issue_number: ${{ steps.set_outputs.outputs.issue_number }}
+      issue_title: ${{ steps.set_outputs.outputs.issue_title }}
+      issue_body: ${{ steps.set_outputs.outputs.issue_body }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Get Issue Details
-              id: issue_details
-              uses: actions/github-script@v7
-              if: github.event_name == 'workflow_dispatch'
-              with:
-                  script: |
-                      const issue_number = ${{ github.event.inputs.issue_number }};
-                      const { data: issue } = await github.rest.issues.get({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: issue_number
-                      });
-                      core.setOutput('number', issue.number);
-                      core.setOutput('title', issue.title);
-                      core.setOutput('body', issue.body);
+      - name: Get Issue Details
+        id: issue_details
+        uses: actions/github-script@v7
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          script: |
+            const issue_number = ${{ github.event.inputs.issue_number }};
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number
+            });
+            core.setOutput('number', issue.number);
+            core.setOutput('title', issue.title);
+            core.setOutput('body', issue.body);
 
-            - name: Extract Parent Issue ID
-              id: extract_parent
-              uses: actions/github-script@v7
-              env:
-                  ISSUE_BODY: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.body || github.event.issue.body }}
-                  ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
-              with:
-                  script: |
-                      const body = process.env.ISSUE_BODY || '';
-                      const issueNumber = process.env.ISSUE_NUMBER;
-                      const match = body.match(/### Parent Issue Number\s+[\r\n]+(\d+)/);
-                      if (!match) {
-                        const errorMsg = `❌ **Error**: Missing Parent Issue Number in issue body.\n\nHotfix branches must reference a parent Bug issue (or can use main for emergency hotfixes).\n\n**To fix this:**\n1. Edit this issue\n2. Add the parent bug issue number in the "Parent Issue Number" field\n3. Re-run the workflow from the [Actions tab](../../actions/workflows/create-hotfix-branch.yml) using workflow_dispatch with issue number ${issueNumber}`;
-                        
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: issueNumber,
-                          body: errorMsg
-                        });
-                        
-                        core.setFailed('Parent Issue Number is required but not found in issue body');
-                        return;
-                      }
-                      core.setOutput('parent_id', match[1]);
+      - name: Extract Parent Issue ID
+        id: extract_parent
+        uses: actions/github-script@v7
+        env:
+          ISSUE_BODY: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.body || github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
+        with:
+          script: |
+            const body = process.env.ISSUE_BODY || '';
+            const issueNumber = process.env.ISSUE_NUMBER;
+            const match = body.match(/### Parent Issue Number\s+[\r\n]+(\d+)/);
+            if (!match) {
+              const errorMsg = `❌ **Error**: Missing Parent Issue Number in issue body.\n\nHotfix branches must reference a parent Bug issue (or can use main for emergency hotfixes).\n\n**To fix this:**\n1. Edit this issue\n2. Add the parent bug issue number in the "Parent Issue Number" field\n3. Re-run the workflow from the [Actions tab](../../actions/workflows/create-hotfix-branch.yml) using workflow_dispatch with issue number ${issueNumber}`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: errorMsg
+              });
+              
+              core.setFailed('Parent Issue Number is required but not found in issue body');
+              return;
+            }
+            core.setOutput('parent_id', match[1]);
 
-            - name: Find Parent Branch and Create Hotfix Branch
-              id: find_parent_branch
-              uses: actions/github-script@v7
-              env:
-                  ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
-                  ISSUE_TITLE: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.title || github.event.issue.title }}
-                  PARENT_ID: ${{ steps.extract_parent.outputs.parent_id }}
-              with:
-                  script: |
-                      const issueNumber = process.env.ISSUE_NUMBER;
-                      const issueTitle = process.env.ISSUE_TITLE;
-                      const parentId = process.env.PARENT_ID;
+      - name: Find Parent Branch and Create Hotfix Branch
+        id: find_parent_branch
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.title || github.event.issue.title }}
+          PARENT_ID: ${{ steps.extract_parent.outputs.parent_id }}
+        with:
+          script: |
+            const issueNumber = process.env.ISSUE_NUMBER;
+            const issueTitle = process.env.ISSUE_TITLE;
+            const parentId = process.env.PARENT_ID;
 
-                      // Strip [HOTFIX]: prefix and slugify title
-                      const titleWithoutPrefix = issueTitle.replace(/^\[?HOTFIX\]?:?\s*/, '');
-                      const slug = titleWithoutPrefix.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().replace(/-+/g, '-').replace(/^-/, '').replace(/-$/, '');
-                      const branchName = `hotfix/${issueNumber}-${slug}`;
+            // Strip [HOTFIX]: prefix and slugify title
+            const titleWithoutPrefix = issueTitle.replace(/^\[?HOTFIX\]?:?\s*/, '');
+            const slug = titleWithoutPrefix.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().replace(/-+/g, '-').replace(/^-/, '').replace(/-$/, '');
+            const branchName = `hotfix/${issueNumber}-${slug}`;
 
-                      // Check if branch already exists
-                      try {
-                        await github.rest.repos.getBranch({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          branch: branchName
-                        });
-                        console.log(`Branch ${branchName} already exists. Skipping creation.`);
-                        return;
-                      } catch (error) {
-                        // Branch doesn't exist, continue
-                      }
+            // Check if branch already exists
+            try {
+              await github.rest.repos.getBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch: branchName
+              });
+              console.log(`Branch ${branchName} already exists. Skipping creation.`);
+              return;
+            } catch (error) {
+              // Branch doesn't exist, continue
+            }
 
-                      // Validate parent issue exists (allow fallback to main for emergency hotfixes)
-                      let parentBranch = 'main';
-                      if (parentId) {
-                        try {
-                          const { data: parentIssue } = await github.rest.issues.get({
-                            owner: context.repo.owner,
-                            repo: context.repo.repo,
-                            issue_number: parentId
-                          });
-                          
-                          const hasBugLabel = parentIssue.labels.some(label => 
-                            typeof label === 'string' ? label === 'bug' : label.name === 'bug'
-                          );
-                          
-                          if (!hasBugLabel) {
-                            await github.rest.issues.createComment({
-                              owner: context.repo.owner,
-                              repo: context.repo.repo,
-                              issue_number: issueNumber,
-                              body: `⚠️ **Warning**: Parent issue #${parentId} does not have the 'bug' label. Creating hotfix from main as emergency hotfix.\n\nIf this is not an emergency hotfix, update the parent issue number to reference a Bug issue and re-run the workflow.`
-                            });
-                            console.log(`Parent issue #${parentId} is not a bug issue. Using main for emergency hotfix.`);
-                          }
-                        } catch (error) {
-                          if (error.status === 404) {
-                            await github.rest.issues.createComment({
-                              owner: context.repo.owner,
-                              repo: context.repo.repo,
-                              issue_number: issueNumber,
-                              body: `⚠️ **Warning**: Parent issue #${parentId} does not exist. Creating hotfix from main as emergency hotfix.\n\nIf this is not an emergency hotfix, create the parent Bug issue first and re-run the workflow.`
-                            });
-                            console.log(`Parent issue #${parentId} does not exist. Using main for emergency hotfix.`);
-                          } else {
-                            throw error;
-                          }
-                        }
-                        try {
-                          // Search for PRs associated with parent issue
-                          const { data: prs } = await github.rest.pulls.list({
-                            owner: context.repo.owner,
-                            repo: context.repo.repo,
-                            state: 'all',
-                            per_page: 100
-                          });
+            // Validate parent issue exists (allow fallback to main for emergency hotfixes)
+            let parentBranch = 'main';
+            if (parentId) {
+              try {
+                const { data: parentIssue } = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parentId
+                });
+                
+                const hasBugLabel = parentIssue.labels.some(label => 
+                  typeof label === 'string' ? label === 'bug' : label.name === 'bug'
+                );
+                
+                if (!hasBugLabel) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    body: `⚠️ **Warning**: Parent issue #${parentId} does not have the 'bug' label. Creating hotfix from main as emergency hotfix.\n\nIf this is not an emergency hotfix, update the parent issue number to reference a Bug issue and re-run the workflow.`
+                  });
+                  console.log(`Parent issue #${parentId} is not a bug issue. Using main for emergency hotfix.`);
+                }
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    body: `⚠️ **Warning**: Parent issue #${parentId} does not exist. Creating hotfix from main as emergency hotfix.\n\nIf this is not an emergency hotfix, create the parent Bug issue first and re-run the workflow.`
+                  });
+                  console.log(`Parent issue #${parentId} does not exist. Using main for emergency hotfix.`);
+                } else {
+                  throw error;
+                }
+              }
+              try {
+                // Search for PRs associated with parent issue
+                const { data: prs } = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'all',
+                  per_page: 100
+                });
 
-                          // Find PR for bug branch
-                          const parentPR = prs.find(pr => 
-                            pr.head.ref.startsWith(`bug/${parentId}-`) &&
-                            (pr.body?.includes(`#${parentId}`) || pr.title.includes(`#${parentId}`))
-                          );
+                // Find PR for bug branch
+                const parentPR = prs.find(pr => 
+                  pr.head.ref.startsWith(`bug/${parentId}-`) &&
+                  (pr.body?.includes(`#${parentId}`) || pr.title.includes(`#${parentId}`))
+                );
 
-                          if (parentPR) {
-                            parentBranch = parentPR.head.ref;
-                            console.log(`Found parent branch via PR: ${parentBranch}`);
-                          } else {
-                            // Fallback: try to find branch directly
-                            const { data: branches } = await github.rest.repos.listBranches({
-                              owner: context.repo.owner,
-                              repo: context.repo.repo,
-                              per_page: 100
-                            });
-                            const bugBranch = branches.find(b => b.name.startsWith(`bug/${parentId}-`));
-                            
-                            if (bugBranch) {
-                              parentBranch = bugBranch.name;
-                              console.log(`Found parent branch via branch list: ${parentBranch}`);
-                            } else {
-                              console.log(`No bug branch found for #${parentId}. Using main for emergency hotfix.`);
-                            }
-                          }
-                        } catch (error) {
-                          console.log(`Error finding parent branch: ${error.message}. Using main for emergency hotfix.`);
-                        }
-                      }
+                if (parentPR) {
+                  parentBranch = parentPR.head.ref;
+                  console.log(`Found parent branch via PR: ${parentBranch}`);
+                } else {
+                  // Fallback: try to find branch directly
+                  const { data: branches } = await github.rest.repos.listBranches({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    per_page: 100
+                  });
+                  const bugBranch = branches.find(b => b.name.startsWith(`bug/${parentId}-`));
+                  
+                  if (bugBranch) {
+                    parentBranch = bugBranch.name;
+                    console.log(`Found parent branch via branch list: ${parentBranch}`);
+                  } else {
+                    console.log(`No bug branch found for #${parentId}. Using main for emergency hotfix.`);
+                  }
+                }
+              } catch (error) {
+                console.log(`Error finding parent branch: ${error.message}. Using main for emergency hotfix.`);
+              }
+            }
 
-                      core.setOutput('parent_branch', parentBranch);
-                      core.setOutput('branch_name', branchName);
-                      console.log(`Will create ${branchName} from ${parentBranch}`);
+            core.setOutput('parent_branch', parentBranch);
+            core.setOutput('branch_name', branchName);
+            console.log(`Will create ${branchName} from ${parentBranch}`);
 
-            - name: Create Branch
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  BRANCH_NAME: ${{ steps.find_parent_branch.outputs.branch_name }}
-                  PARENT_BRANCH: ${{ steps.find_parent_branch.outputs.parent_branch }}
-              run: |
-                  if [ -z "$BRANCH_NAME" ]; then
-                    echo "Branch already exists, skipping."
-                    exit 0
-                  fi
-                  echo "Creating branch: $BRANCH_NAME from $PARENT_BRANCH"
+      - name: Create Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.find_parent_branch.outputs.branch_name }}
+          PARENT_BRANCH: ${{ steps.find_parent_branch.outputs.parent_branch }}
+        run: |
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "Branch already exists, skipping."
+            exit 0
+          fi
+          echo "Creating branch: $BRANCH_NAME from $PARENT_BRANCH"
 
-                  git config user.name "github-actions[bot]"
-                  git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-                  git checkout "$PARENT_BRANCH"
-                  git checkout -b "$BRANCH_NAME"
-                  git commit --allow-empty -m "chore: initialize branch"
-                  git push origin "$BRANCH_NAME"
+          git checkout "$PARENT_BRANCH"
+          git checkout -b "$BRANCH_NAME"
+          git commit --allow-empty -m "chore: initialize branch"
+          git push origin "$BRANCH_NAME"
 
-            - name: Set Outputs for Next Job
-              id: set_outputs
-              env:
-                  ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
-                  ISSUE_TITLE: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.title || github.event.issue.title }}
-                  ISSUE_BODY: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.body || github.event.issue.body }}
-              run: |
-                  echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-                  echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
-                  echo "issue_body<<EOF" >> $GITHUB_OUTPUT
-                  echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
-                  echo "EOF" >> $GITHUB_OUTPUT
+      - name: Set Outputs for Next Job
+        id: set_outputs
+        env:
+          ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.title || github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.body || github.event.issue.body }}
+        run: |
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "issue_title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-            - name: Comment on Issue
-              if: success()
-              uses: actions/github-script@v6
-              env:
-                  ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
-              with:
-                  script: |
-                      const issue_number = process.env.ISSUE_NUMBER;
-                      const issue_title = context.payload.issue ? context.payload.issue.title : '${{ steps.issue_details.outputs.title }}';
-                      const title_without_prefix = issue_title.replace(/^\[?HOTFIX\]?:?[\s]*/, '');
-                      const slug = title_without_prefix.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().replace(/-+/g, '-').replace(/^-/, '').replace(/-$/, '');
-                      const branch_name = `hotfix/${issue_number}-${slug}`;
+      - name: Comment on Issue
+        if: success()
+        uses: actions/github-script@v6
+        env:
+          ISSUE_NUMBER: ${{ github.event_name == 'workflow_dispatch' && steps.issue_details.outputs.number || github.event.issue.number }}
+        with:
+          script: |
+            const issue_number = process.env.ISSUE_NUMBER;
+            const issue_title = context.payload.issue ? context.payload.issue.title : '${{ steps.issue_details.outputs.title }}';
+            const title_without_prefix = issue_title.replace(/^\[?HOTFIX\]?:?[\s]*/, '');
+            const slug = title_without_prefix.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().replace(/-+/g, '-').replace(/^-/, '').replace(/-$/, '');
+            const branch_name = `hotfix/${issue_number}-${slug}`;
 
-                      github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: issue_number,
-                        body: `Branch \`${branch_name}\` created from parent bug branch!`
-                      });
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: `Branch \`${branch_name}\` created from parent bug branch!`
+            });
 
-    create_pr:
-        needs: create_branch
-        if: needs.create_branch.result == 'success'
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+  create_pr:
+    needs: create_branch
+    if: needs.create_branch.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Calculate Branch Names
-              id: calc_branches
-              env:
-                  ISSUE_NUMBER: ${{ needs.create_branch.outputs.issue_number }}
-                  ISSUE_TITLE: ${{ needs.create_branch.outputs.issue_title }}
-              run: |
-                  # Strip [HOTFIX]: prefix and slugify title
-                  TITLE_WITHOUT_PREFIX=$(echo "$ISSUE_TITLE" | sed -E 's/^\[?HOTFIX\]?:?[[:space:]]*//')
-                  SLUG=$(echo "$TITLE_WITHOUT_PREFIX" | sed -e 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | sed -e 's/-\+/-/g' | sed -e 's/^-//' | sed -e 's/-$//')
-                  BRANCH_NAME="hotfix/$ISSUE_NUMBER-$SLUG"
-                  echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+      - name: Calculate Branch Names
+        id: calc_branches
+        env:
+          ISSUE_NUMBER: ${{ needs.create_branch.outputs.issue_number }}
+          ISSUE_TITLE: ${{ needs.create_branch.outputs.issue_title }}
+        run: |
+          # Strip [HOTFIX]: prefix and slugify title
+          TITLE_WITHOUT_PREFIX=$(echo "$ISSUE_TITLE" | sed -E 's/^\[?HOTFIX\]?:?[[:space:]]*//')
+          SLUG=$(echo "$TITLE_WITHOUT_PREFIX" | sed -e 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | sed -e 's/-\+/-/g' | sed -e 's/^-//' | sed -e 's/-$//')
+          BRANCH_NAME="hotfix/$ISSUE_NUMBER-$SLUG"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
-            - name: Create Empty Commit and Push
-              env:
-                  BRANCH_NAME: ${{ steps.calc_branches.outputs.branch_name }}
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Create Empty Commit and Push
+        env:
+          BRANCH_NAME: ${{ steps.calc_branches.outputs.branch_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-                  # Check if branch exists
-                  if ! git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
-                    echo "Branch $BRANCH_NAME does not exist. Skipping PR creation."
-                    exit 0
-                  fi
+          # Check if branch exists
+          if ! git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME does not exist. Skipping PR creation."
+            exit 0
+          fi
 
-                  git checkout "$BRANCH_NAME"
-                  git commit --allow-empty -m "chore: initialize branch"
-                  git push origin "$BRANCH_NAME"
+          git checkout "$BRANCH_NAME"
+          git commit --allow-empty -m "chore: initialize branch"
+          git push origin "$BRANCH_NAME"
 
-            - name: Create Pull Request
-              uses: actions/github-script@v7
-              env:
-                  BRANCH_NAME: ${{ steps.calc_branches.outputs.branch_name }}
-                  PARENT_BRANCH: ${{ needs.create_branch.outputs.parent_branch }}
-                  ISSUE_NUMBER: ${{ needs.create_branch.outputs.issue_number }}
-                  ISSUE_TITLE: ${{ needs.create_branch.outputs.issue_title }}
-                  ISSUE_BODY: ${{ needs.create_branch.outputs.issue_body }}
-              with:
-                  script: |
-                      const branch_name = process.env.BRANCH_NAME;
-                      const parent_branch = process.env.PARENT_BRANCH;
-                      const issue_number = process.env.ISSUE_NUMBER;
-                      const issue_title = process.env.ISSUE_TITLE;
-                      const issue_body = process.env.ISSUE_BODY || '';
+      - name: Create Pull Request
+        uses: actions/github-script@v7
+        env:
+          BRANCH_NAME: ${{ steps.calc_branches.outputs.branch_name }}
+          PARENT_BRANCH: ${{ needs.create_branch.outputs.parent_branch }}
+          ISSUE_NUMBER: ${{ needs.create_branch.outputs.issue_number }}
+          ISSUE_TITLE: ${{ needs.create_branch.outputs.issue_title }}
+          ISSUE_BODY: ${{ needs.create_branch.outputs.issue_body }}
+        with:
+          script: |
+            const branch_name = process.env.BRANCH_NAME;
+            const parent_branch = process.env.PARENT_BRANCH;
+            const issue_number = process.env.ISSUE_NUMBER;
+            const issue_title = process.env.ISSUE_TITLE;
+            const issue_body = process.env.ISSUE_BODY || '';
 
-                      // Check for existing PR
-                      const { data: existingPRs } = await github.rest.pulls.list({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        head: `${context.repo.owner}:${branch_name}`,
-                        state: 'open'
-                      });
+            // Check for existing PR
+            const { data: existingPRs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch_name}`,
+              state: 'open'
+            });
 
-                      if (existingPRs.length > 0) {
-                        console.log(`PR already exists: ${existingPRs[0].html_url}`);
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: issue_number,
-                          body: `Pull request already exists: ${existingPRs[0].html_url}`
-                        });
-                        return;
-                      }
+            if (existingPRs.length > 0) {
+              console.log(`PR already exists: ${existingPRs[0].html_url}`);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue_number,
+                body: `Pull request already exists: ${existingPRs[0].html_url}`
+              });
+              return;
+            }
 
-                      // Create the PR
-                      const { data: pr } = await github.rest.pulls.create({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        title: `[Hotfix #${issue_number}] ${issue_title.replace(/^\[?HOTFIX\]?:?\s*/, '')}`,
-                        head: branch_name,
-                        base: parent_branch,
-                        body: `Closes #${issue_number}\n\n## Original Issue\n\n${issue_body}\n\n---\n\nThis PR closes #${issue_number}`
-                      });
+            // Create the PR
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Hotfix #${issue_number}] ${issue_title.replace(/^\[?HOTFIX\]?:?\s*/, '')}`,
+              head: branch_name,
+              base: parent_branch,
+              body: `This closes #${issue_number}\n\n## Original Issue\n\n${issue_body}\n\n---\n\nThis PR closes #${issue_number}`
+            });
 
-                      // Add 'fix' label to the PR
-                      await github.rest.issues.addLabels({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: pr.number,
-                        labels: ['fix']
-                      });
+            // Add 'fix' label to the PR
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['fix']
+            });
 
-                      console.log(`Created PR #${pr.number}`);
+            console.log(`Created PR #${pr.number}`);
 
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: issue_number,
-                        body: `Pull request created: ${pr.html_url}`
-                      });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: `Pull request created: ${pr.html_url}`
+            });

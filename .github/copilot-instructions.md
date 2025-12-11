@@ -41,7 +41,7 @@ Then:
 1. Create GitHub issue describing the work
 2. Create PR to appropriate parent branch
 3. Add correct label (`implementation`, `addition`, or `fix`)
-4. Reference issue: `Closes #<issue-number>`
+4. Reference issue: `This closes #<issue-number>`
 
 ### Branch Naming (Automated)
 
