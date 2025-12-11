@@ -160,11 +160,11 @@ import { createPoll } from "ags/time"
 const time = createPoll("", 1000, "date")
 
 <Tile units={2} baseColor="rgba(70, 130, 180, 1)">
-  <label label={time.value} widthRequest={200} halign={Gtk.Align.CENTER} />
+  <label label={time()} widthRequest={200} halign={Gtk.Align.CENTER} />
 </Tile>
 ```
 
-**Note:** This example uses `createPoll` from `ags/time`, which is the AGS-specific polling API. The `time.value` property accesses the current polled value.
+**Note:** This example uses `createPoll` from `ags/time`, which is the AGS-specific polling API. `createPoll` returns a function that must be called (i.e., `time()`) to access the current polled value.
 
 ## Implementation Notes
 

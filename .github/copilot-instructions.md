@@ -35,6 +35,19 @@ The project implements a unique "interlocking tile" visual system using Cairo dr
   - `offset`: Starting parity (0 or 1).
 - Content inside the tile must respect the trapezoidal boundaries.
 
+### TypeScript Guidelines
+
+- **Type Safety**: Prefer specific types over `any` when practical.
+- **`any` is acceptable** in the following cases:
+  - **GTK/AGS Widget Interop**: When dealing with AGS widget children, GTK widget properties, or Cairo contexts where the framework's type system is incomplete or overly complex.
+  - **Dynamic Widget Trees**: For `children` props that accept mixed GTK widgets, TSX elements, or dynamic content.
+  - **Third-party Library Gaps**: When AGS/GTK type definitions are incomplete or incorrect.
+- **When to avoid `any`**:
+  - Internal application logic and business code.
+  - Data structures and models.
+  - Function parameters with known types.
+- Use explicit return types for exported functions to maintain type safety at API boundaries.
+
 ### 2. Cairo Drawing (`lib/drawing.ts`)
 
 - Use `Cairo.Context` for custom drawing.

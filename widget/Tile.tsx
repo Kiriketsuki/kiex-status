@@ -102,7 +102,7 @@ export default function Tile({
     if (bg.parse(baseColor)) {
       cr.setSourceRGBA(bg.red, bg.green, bg.blue, bg.alpha)
     } else {
-      print(`[Tile] Failed to parse baseColor: ${baseColor}`)
+      console.error(`[Tile] Failed to parse baseColor: ${baseColor}`)
       cr.setSourceRGBA(0.2, 0.2, 0.2, 1)
     }
     drawPolyTile(cr, w, h, units, startUpright)
@@ -111,13 +111,15 @@ export default function Tile({
     // Subtiles
     for (const [indexStr, colorStr] of Object.entries(subtiles)) {
       const index = parseInt(indexStr)
+      if (isNaN(index)) {
+        console.error(`[Tile] Invalid subtile index: ${indexStr}`)
+        continue
+      }
       const color = new Gdk.RGBA()
       if (color.parse(colorStr)) {
         cr.setSourceRGBA(color.red, color.green, color.blue, color.alpha)
-        drawTriangle(cr, h, index, startUpright, units)
-        cr.fill()
       } else {
-        print(
+        console.error(
           `[Tile] Failed to parse subtile color at index ${index}: ${colorStr}`
         )
         // Fallback: use baseColor
@@ -132,9 +134,9 @@ export default function Tile({
         } else {
           cr.setSourceRGBA(0.2, 0.2, 0.2, 1)
         }
-        drawTriangle(cr, h, index, startUpright, units)
-        cr.fill()
       }
+      drawTriangle(cr, h, index, startUpright, units)
+      cr.fill()
     }
 
     // Grid

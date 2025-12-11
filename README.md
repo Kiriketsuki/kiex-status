@@ -103,7 +103,7 @@ The bar is composed of independent modules, each drawn as a sequence of interloc
 
 ```
 kiex-status/
-├── app.ts             # Entry point
+├── app.ts             # Main application entry point
 ├── style.scss         # Styles
 ├── lib/
 │   └── drawing.ts     # Cairo drawing logic
