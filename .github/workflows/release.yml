@@ -1,85 +1,114 @@
-name: Release
+name: Release Management
 
 on:
-  push:
-    branches:
-      - release
-
-permissions:
-  contents: write
+    pull_request:
+        branches:
+            - release
+        types: [closed]
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+    create-release:
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+              with:
+                  ref: release
+                  fetch-depth: 0
 
-      - name: Check for Release Commit
-        id: check_commit
-        run: |
-          COMMIT_MSG=$(git log -1 --pretty=%B)
-          echo "Commit message: $COMMIT_MSG"
-          if [[ "$COMMIT_MSG" =~ ^chore:\ release\ v ]]; then
-            echo "IS_RELEASE_COMMIT=true" >> $GITHUB_OUTPUT
-            echo "Detected release commit. Proceeding to release."
-          else
-            echo "IS_RELEASE_COMMIT=false" >> $GITHUB_OUTPUT
-            echo "Not a release commit. Proceeding to bump version."
-          fi
+            - name: Read version
+              id: get_version
+              run: |
+                  if [ ! -f VERSION ]; then
+                    echo "Error: No VERSION file found"
+                    exit 1
+                  fi
 
-      - name: Bump Release Version
-        if: steps.check_commit.outputs.IS_RELEASE_COMMIT == 'false'
-        run: |
-          CURRENT_VERSION=$(cat VERSION)
-          echo "Current Version: $CURRENT_VERSION"
+                  VERSION=$(cat VERSION | tr -d '[:space:]')
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+                  echo "Creating release for version: $VERSION"
 
-          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-z]*)$ ]]; then
-            MAJOR="${BASH_REMATCH[1]}"
-            TASK="${BASH_REMATCH[2]}"
-            FEATURE="${BASH_REMATCH[3]}"
-            BUG="${BASH_REMATCH[4]}"
-            HOTFIX="${BASH_REMATCH[5]}"
-          else
-            echo "Error: Invalid version format: $CURRENT_VERSION"
-            exit 1
-          fi
+                  # Parse version components
+                  if [[ $VERSION =~ ^([0-9]{2})\.([0-9]+)\.([0-9]+)\.([0-9]+)([a-zA-Z]*)$ ]]; then
+                    YY="${BASH_REMATCH[1]}"
+                    MAJOR="${BASH_REMATCH[2]}"
+                    MINOR="${BASH_REMATCH[3]}"
+                    PATCH="${BASH_REMATCH[4]}"
+                    SUFFIX="${BASH_REMATCH[5]}"
+                    echo "year=20$YY" >> $GITHUB_OUTPUT
+                    echo "major=$MAJOR" >> $GITHUB_OUTPUT
+                    echo "minor=$MINOR" >> $GITHUB_OUTPUT
+                    echo "patch=$PATCH" >> $GITHUB_OUTPUT
+                  fi
 
-          # Bump MAJOR component (1st digit) for production releases
-          MAJOR=$((MAJOR + 1))
-          TASK=0
-          FEATURE=0
-          BUG=0
-          HOTFIX=""
+            - name: Sync VERSION from main
+              run: |
+                  git fetch origin main
+                  MAIN_VERSION=$(git show origin/main:VERSION | tr -d '[:space:]')
+                  RELEASE_VERSION=$(cat VERSION | tr -d '[:space:]')
 
-          NEW_VERSION="$MAJOR.$TASK.$FEATURE.$BUG$HOTFIX"
-          echo "Bumping to: $NEW_VERSION"
-          echo "$NEW_VERSION" > VERSION
+                  if [ "$MAIN_VERSION" != "$RELEASE_VERSION" ]; then
+                    echo "Syncing VERSION from main: $MAIN_VERSION"
+                    echo "$MAIN_VERSION" > VERSION
 
-          # Update package.json
-          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
+                    if [ -f package.json ]; then
+                      sed -i "s/\"version\": \".*\"/\"version\": \"$MAIN_VERSION\"/" package.json
+                    fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+                    find . -maxdepth 4 -name "pyproject.toml" \
+                      -not -path "*/node_modules/*" \
+                      -not -path "*/.pio/*" \
+                      -not -path "*/vendor/*" \
+                      -not -path "*/.venv/*" | while read -r f; do
+                      if grep -q '^version' "$f"; then
+                        sed -i "s/^version = \".*\"/version = \"$MAIN_VERSION\"/" "$f"
+                      fi
+                    done
 
-          git add VERSION package.json
-          git commit -m "chore: release v$NEW_VERSION"
-          git push origin release
+                    git config user.name "github-actions[bot]"
+                    git config user.email "github-actions[bot]@users.noreply.github.com"
+                    git add -A
+                    git diff --cached --quiet || {
+                      git commit -m "ci: sync version $MAIN_VERSION from main [skip ci]"
+                      git push origin release
+                    }
 
-      - name: Read Version
-        if: steps.check_commit.outputs.IS_RELEASE_COMMIT == 'true'
-        id: get_version
-        run: |
-          current_version=$(cat VERSION)
-          echo "VERSION=$current_version" >> $GITHUB_OUTPUT
+                    echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
+                  fi
 
-      - name: Create Release
-        if: steps.check_commit.outputs.IS_RELEASE_COMMIT == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          name: Release v${{ steps.get_version.outputs.VERSION }}
-          generate_release_notes: true
-          draft: false
-          prerelease: false
+            - name: Create git tag
+              run: |
+                  VERSION=$(cat VERSION | tr -d '[:space:]')
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+                    echo "Tag v$VERSION already exists, skipping."
+                  else
+                    git tag -a "v$VERSION" -m "Release version $VERSION"
+                    git push origin "v$VERSION"
+                  fi
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: v${{ steps.get_version.outputs.version }}
+                  name: Release v${{ steps.get_version.outputs.version }}
+                  body: |
+                      ## Release v${{ steps.get_version.outputs.version }}
+
+                      **Version**: `${{ steps.get_version.outputs.version }}`
+                      **Year**: ${{ steps.get_version.outputs.year }}
+
+                      ### Version Components
+                      - **Epics (Major)**: ${{ steps.get_version.outputs.major }}
+                      - **Features (Minor)**: ${{ steps.get_version.outputs.minor }}
+                      - **Tasks/Bugs (Patch)**: ${{ steps.get_version.outputs.patch }}
+
+                      ### Changes
+                      ${{ github.event.pull_request.body }}
+                  draft: false
+                  prerelease: false
